@@ -19,11 +19,13 @@ at least 8 GB of free RAM.
 git clone https://github.com/leffen/aco-workshop.git
 cd aco-workshop
 
-make setup                 # a virtual environment in .venv, with the one dependency
+make setup                 # Python environment, .env, then the preflight
+$EDITOR .env               # set ANTHROPIC_API_KEY
 make preflight             # every line must say OK; it tells you what to fix if not
-
-cp .env.example .env       # then set ANTHROPIC_API_KEY in it
 ```
+
+Every command here is safe to re-run: `make setup` only does what is not done yet, and
+`make cluster-up` starts, repairs or reuses the cluster it finds. When in doubt, run it again.
 
 `.env` is git-ignored. Never commit it, and use a key you can rotate afterwards.
 

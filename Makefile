@@ -14,15 +14,31 @@ PY   ?= $(VENV)/bin/python
 
 .DEFAULT_GOAL := help
 
+# .env holds your settings (ANTHROPIC_API_KEY, ACO_BACKEND), and every target
+# sees them. make setup creates it from .env.example. As with any dotenv, what
+# you set in the shell or on the command line wins over the file. Tolerated:
+# `export KEY=value`, quotes around the value, Windows line endings.
+# Written for GNU Make 3.81 too: that is what macOS ships as /usr/bin/make.
+ifneq ($(wildcard .env),)
+ENV_FILE_VARS := $(shell sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=.*/\2/p' .env)
+env_file_value = $(shell tr -d '\r' < .env | sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?$(1)[[:space:]]*=[[:space:]]*//p' | tail -n 1 | sed -E 's/[[:space:]]+$$//; s/^"(.*)"$$/\1/; s/^'"'"'(.*)'"'"'$$/\1/')
+$(foreach v,$(ENV_FILE_VARS),$(eval $(v) ?= $(call env_file_value,$(v))))
+export $(ENV_FILE_VARS)
+endif
+
 .PHONY: help
 help: ## Show available commands
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: setup
-setup: ## Install the Python dependencies into .venv
-	python3 -m venv $(VENV)
-	$(VENV)/bin/pip install -q -r requirements.txt
+setup: ## Python environment, .env, then the preflight. Safe to re-run
+	@VENV=$(VENV) MAKE="$(MAKE)" bootstrap/setup.sh
+
+# Targets that run the harness depend on this, so a skipped make setup is
+# repaired on demand instead of failing on a missing .venv/bin/python.
+$(VENV)/.installed: requirements.txt
+	@VENV=$(VENV) bootstrap/setup.sh venv
 
 ## --- Environments ---
 ## One contract, three ways in: codespaces, k3d or your own cluster.
@@ -57,7 +73,7 @@ nuke: ## Delete exactly the workshop namespace, after printing what will go
 	@bootstrap/nuke.sh
 
 .PHONY: prove
-prove: ## Check a quest on your namespace, print its proof. Reads, plus the referee's probe pod; honour system. Usage: make prove QUEST=<id>
+prove: $(VENV)/.installed ## Check a quest on your namespace, print its proof. Reads, plus the referee's probe pod; honour system. Usage: make prove QUEST=<id>
 	@test -n "$(QUEST)" || { echo "usage: make prove QUEST=first-blood|harden-without-breaking"; exit 1; }
 	@$(PY) evals/run.py --prove "$(QUEST)"
 
@@ -109,7 +125,7 @@ quest-board: ## The top ten on the scoreboard
 AGENT ?= claude
 
 .PHONY: eval
-eval: ## Run one scenario. Usage: make eval SCENARIO=<id> N=10 [AGENT=oracle]
+eval: $(VENV)/.installed ## Run one scenario. Usage: make eval SCENARIO=<id> N=10 [AGENT=oracle]
 	@$(PY) evals/run.py --scenario $(SCENARIO) --runs $(or $(N),10) --agent $(AGENT)
 
 .PHONY: reset
@@ -139,12 +155,12 @@ agent: ## Run the agent. Usage: make agent MODE=deploy|harden|incident [APPROVE=
 # cannot drift apart. Every one of these goes through the harness's ownership
 # guard and pinned context.
 .PHONY: lab1-break
-lab1-break: ## Lab 1: plant an ImagePullBackOff
+lab1-break: $(VENV)/.installed ## Lab 1: plant an ImagePullBackOff
 	@$(PY) evals/run.py --scenario imagepullbackoff --phase break
 
 LEVEL ?= easy
 .PHONY: lab
-lab: ## Start a lab at your level. Usage: make lab LAB=1|2|3 [LEVEL=easy|normal|hard]
+lab: $(VENV)/.installed ## Start a lab at your level. Usage: make lab LAB=1|2|3 [LEVEL=easy|normal|hard]
 	@test -n "$(LAB)" || { echo "Usage: make lab LAB=1|2|3 [LEVEL=easy|normal|hard]"; exit 1; }
 	@$(PY) bin/lab.py --lab $(LAB) --level $(or $(LEVEL),easy)
 
@@ -152,7 +168,7 @@ CATCHUP_1 = deploy-web
 CATCHUP_2 = harden-restricted
 
 .PHONY: catch-up
-catch-up: ## Put the namespace where lab N ends. Usage: make catch-up LAB=1|2
+catch-up: $(VENV)/.installed ## Put the namespace where lab N ends. Usage: make catch-up LAB=1|2
 	@test -n "$(CATCHUP_$(LAB))" || { echo "LAB must be 1 or 2"; exit 1; }
 	@evals/reset.sh
 	@$(PY) evals/run.py --scenario $(CATCHUP_$(LAB)) --phase fix
@@ -166,5 +182,5 @@ health: ## The referee. Deterministic; the agent may run it, never change it
 	@bin/health.sh
 
 .PHONY: chaos
-chaos: ## Lab 3: break something. SCENARIO=<id> picks it; otherwise a random chaos scenario
+chaos: $(VENV)/.installed ## Lab 3: break something. SCENARIO=<id> picks it; otherwise a random chaos scenario
 	@$(PY) evals/run.py $(if $(SCENARIO),--scenario $(SCENARIO),--chaos) --phase setup,break
