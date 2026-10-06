@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agentic-ops
+  labels:
+    # Deliberately permissive. Lab 2 is partly about earning the right to
+    # tighten this to "restricted" without breaking the workload.
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: baseline
+    app.kubernetes.io/part-of: agentic-cloud-ops

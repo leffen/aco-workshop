@@ -1,0 +1,21 @@
+site/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.cache/
+.env
+node_modules/
+dist/
+web/.astro/
+web/coverage/
+agents/audit/
+evals/.last-chaos
+.cve-scan/
+
+# make docker-run's local stand-ins for the gate Secrets
+.local/
+
+# The quest board's real plaintext answers. Never committed: participants clone this repo.
+quests/server/answers.local.yaml

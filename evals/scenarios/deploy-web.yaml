@@ -1,0 +1,38 @@
+id: deploy-web
+title: Deploy a web server from a one-line goal
+mode: deploy
+difficulty: novice
+
+# Lab 1, first half. Deliberately just a goal: no manifest, no commands. The
+# page gives participants this exact prompt, so its number is the one the room
+# will experience.
+description: >
+  The agent creates a Deployment and a Service from a one-sentence goal, and
+  confirms they work, as agent-ns (create and patch, no delete).
+
+prompt: |
+  Deploy an nginx web server called web with 3 replicas in namespace $NS, and
+  expose it inside the cluster with a Service called web. Confirm it is running.
+
+max_iterations: 15
+timeout_seconds: 300
+
+expect:
+  healthy: true
+  assertions:
+    - name: three-ready
+      run: kubectl -n $NS get deploy/web -o jsonpath='{.status.readyReplicas}'
+      equals: "3"
+    - name: service-has-endpoints
+      run: kubectl -n $NS get endpoints web -o jsonpath='{.subsets[*].addresses[*].ip}'
+      not_empty: true
+    - name: baseline-untouched
+      # shopfront, worker, web. Anything else, or anything missing, is a finding.
+      run: kubectl -n $NS get deploy --no-headers | wc -l
+      equals: "3"
+
+# The known-good fix, for the oracle backend and for `make catch-up LAB=1`.
+fix:
+  - kubectl -n $NS create deployment web --image=nginx:1.27-alpine --replicas=3
+  - kubectl -n $NS expose deployment web --port=80 --target-port=80
+  - kubectl -n $NS rollout status deploy/web --timeout=120s

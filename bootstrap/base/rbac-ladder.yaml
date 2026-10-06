@@ -1,0 +1,161 @@
+# The RBAC ladder.
+#
+# Four rungs, each a separate ServiceAccount, so participants can run
+#   kubectl auth can-i --list --as=system:serviceaccount:agentic-ops:<sa>
+# and watch the surface change.
+#
+# The teaching point is rung 2: the `delete` verb is simply ABSENT. The agent
+# cannot delete because the API server will not let it — no prompt engineering
+# involved, and nothing to trust the model about.
+#
+# Every binding here is a RoleBinding. There is no ClusterRoleBinding in this
+# file, and there must never be one: that is what bounds the blast radius on a
+# bring-your-own cluster.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-ro
+  namespace: agentic-ops
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-ns
+  namespace: agentic-ops
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-harden
+  namespace: agentic-ops
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-admin
+  namespace: agentic-ops
+---
+# --- Rung 0: read-only -------------------------------------------------------
+# Note what is missing: secrets. The agent can see from events that a Secret is
+# referenced and absent; it cannot read what is in one.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: agent-ro
+  namespace: agentic-ops
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, pods/status, services, configmaps, events,
+                persistentvolumeclaims, serviceaccounts, resourcequotas, limitranges]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets, daemonsets, deployments/status]
+    verbs: [get, list, watch]
+  - apiGroups: [events.k8s.io]
+    resources: [events]
+    verbs: [get, list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies, ingresses]
+    verbs: [get, list, watch]
+  - apiGroups: [metrics.k8s.io]
+    resources: [pods, nodes]
+    verbs: [get, list]
+---
+# --- Rung 1: namespace write, no delete --------------------------------------
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: agent-ns
+  namespace: agentic-ops
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, pods/status, services, configmaps, events,
+                persistentvolumeclaims, serviceaccounts, resourcequotas, limitranges]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets, daemonsets, deployments/status]
+    verbs: [get, list, watch]
+  - apiGroups: [events.k8s.io]
+    resources: [events]
+    verbs: [get, list, watch]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies, ingresses]
+    verbs: [get, list, watch]
+  # ...and now it can build things. Still no `delete`, anywhere.
+  - apiGroups: [""]
+    resources: [services, configmaps]
+    verbs: [create, patch, update]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [create, patch, update]
+---
+# --- Rung 2: hardening -------------------------------------------------------
+# Adds exactly what Lab 2 needs: rollout control and NetworkPolicies.
+# Still no `delete`. Rolling back is `rollout undo`, which is an update.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: agent-harden
+  namespace: agentic-ops
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, pods/status, services, configmaps, events,
+                persistentvolumeclaims, serviceaccounts, resourcequotas, limitranges]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets, daemonsets, deployments/status]
+    verbs: [get, list, watch]
+  - apiGroups: [events.k8s.io]
+    resources: [events]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [services, configmaps]
+    verbs: [create, patch, update]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [create, patch, update]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list, watch, create, patch, update]
+---
+# --- Rung 3: namespace admin -------------------------------------------------
+# Created so it can be inspected and contrasted. Deliberately NOT bound to
+# anything: the ladder ends with a rung nobody stands on.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: agent-admin
+  namespace: agentic-ops
+rules:
+  - apiGroups: ["", apps, networking.k8s.io, batch, policy]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agent-ro
+  namespace: agentic-ops
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: agent-ro}
+subjects:
+  - {kind: ServiceAccount, name: agent-ro, namespace: agentic-ops}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agent-ns
+  namespace: agentic-ops
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: agent-ns}
+subjects:
+  - {kind: ServiceAccount, name: agent-ns, namespace: agentic-ops}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agent-harden
+  namespace: agentic-ops
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: agent-harden}
+subjects:
+  - {kind: ServiceAccount, name: agent-harden, namespace: agentic-ops}
+# agent-admin: intentionally unbound. See the comment on the Role above.

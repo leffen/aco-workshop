@@ -1,0 +1,19 @@
+# The one kustomization, applied identically in every environment.
+#
+# The namespace literal `agentic-ops` is a placeholder: bootstrap/apply.sh
+# rewrites it to $NAMESPACE before applying, so a shared cluster can give each
+# participant their own. On a private cluster the default is fine as-is.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: agentic-ops
+
+resources:
+  - namespace.yaml
+  - rbac-ladder.yaml
+  - workload-insecure.yaml
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: agentic-cloud-ops

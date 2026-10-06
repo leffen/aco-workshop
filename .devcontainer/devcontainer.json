@@ -1,0 +1,37 @@
+{
+  "name": "Agentic Cloud Ops",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+
+  // 4 cores matters: a 2-core Codespace runs the cluster, but slowly enough
+  // that Lab 2 rollouts start timing out.
+  "hostRequirements": { "cpus": 4, "memory": "8gb", "storage": "32gb" },
+
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": true },
+    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "minikube": "none" },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" },
+    "ghcr.io/devcontainers-extra/features/k3d:1": {}
+  },
+
+  // The API key comes from a repository Codespaces secret. It is never pasted
+  // into a terminal, never committed, and never leaves GitHub's network.
+  "secrets": {
+    "ANTHROPIC_API_KEY": {
+      "description": "Anthropic API key for the workshop agent.",
+      "documentationUrl": "https://console.anthropic.com/settings/keys"
+    }
+  },
+
+  // Pre-pull on image build, not on cluster create. This is what makes the
+  // bootstrap block eight minutes instead of a coffee break.
+  "onCreateCommand": "docker pull nginx:1.27-alpine && docker pull busybox:1.36 || true",
+
+  "postAttachCommand": "echo '\\nRun:  make env-up ENV=codespaces\\n'",
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-kubernetes-tools.vscode-kubernetes-tools", "anthropic.claude-code"]
+    }
+  }
+}

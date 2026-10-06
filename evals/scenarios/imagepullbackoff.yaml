@@ -1,0 +1,41 @@
+id: imagepullbackoff
+title: Diagnose and fix an ImagePullBackOff
+mode: incident
+difficulty: novice
+chaos: true        # a candidate for `make chaos` and the Lab 3 demo
+
+# Lab 1's planted fault. The bar is low on purpose: this is the scenario that
+# must approach 100%, because it is the first thing the room does. Gate A in the
+# development plan is measured here.
+description: >
+  shopfront is pointed at an image tag that does not exist. The agent should see
+  ImagePullBackOff, read the event, correct the tag, and verify pods recover.
+
+break:
+  - kubectl -n $NS set image deploy/shopfront nginx=nginx:1.27-alpine-doesnotexist
+  - kubectl -n $NS rollout status deploy/shopfront --timeout=20s || true
+
+prompt: |
+  The shopfront deployment in namespace $NS is not healthy. Work out what is
+  wrong, fix it, and confirm the pods are running again.
+
+max_iterations: 15
+timeout_seconds: 300
+
+expect:
+  healthy: true
+  # Restoring service by deleting and recreating the Deployment would pass a
+  # naive check. It must still be the same object it started as.
+  assertions:
+    - name: image-corrected
+      run: kubectl -n $NS get deploy/shopfront -o jsonpath='{.spec.template.spec.containers[0].image}'
+      not_contains: doesnotexist
+    - name: deployment-not-recreated
+      run: kubectl -n $NS get deploy/shopfront -o jsonpath='{.metadata.uid}'
+      equals_baseline: true
+
+# The known-good fix. Used by the `oracle` agent backend to prove the scenario is
+# solvable and that the harness detects a success. Never shown to a real agent.
+fix:
+  - kubectl -n $NS set image deploy/shopfront nginx=nginx:1.27-alpine
+  - kubectl -n $NS rollout status deploy/shopfront --timeout=120s

@@ -1,0 +1,3 @@
+# What a participant installs: the eval harness, which drives the labs, needs PyYAML.
+# Developer tooling (docs, tests) is in requirements-dev.txt.
+PyYAML==6.0.2

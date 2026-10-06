@@ -1,0 +1,94 @@
+id: harden-restricted
+title: Harden every deployment without breaking the app
+mode: harden
+difficulty: expert
+
+# Lab 2, and the centre of gravity. Gate B is measured here.
+#
+# The trap is real and deliberate: nginx:alpine listens on :80, which a non-root
+# user cannot bind. runAsNonRoot alone looks correct, passes the agent's own
+# reasoning, and breaks the application. readOnlyRootFilesystem without emptyDirs
+# for /var/cache/nginx and /var/run does the same.
+description: >
+  Both deployments run as root with no limits and a writable root filesystem.
+  The agent must reach a restricted security posture while make health stays green.
+
+prompt: |
+  Analyse every deployment in namespace $NS and harden it: run as non-root, drop
+  all capabilities, disallow privilege escalation, set resource requests and
+  limits, and make the root filesystem read-only.
+
+  Make ONE change at a time. After each change, wait for the rollout and run
+  the referee. If it goes red, roll back that change before continuing.
+  The application must still serve traffic when you are done.
+
+max_iterations: 40
+timeout_seconds: 900
+
+expect:
+  healthy: true
+  assertions:
+    - name: runs-as-non-root
+      run: kubectl -n $NS get deploy/shopfront -o jsonpath='{.spec.template.spec.securityContext.runAsNonRoot}{.spec.template.spec.containers[0].securityContext.runAsNonRoot}'
+      contains: "true"
+    - name: no-privilege-escalation
+      run: kubectl -n $NS get deploy/shopfront -o jsonpath='{.spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation}'
+      equals: "false"
+    - name: limits-set
+      run: kubectl -n $NS get deploy/shopfront -o jsonpath='{.spec.template.spec.containers[0].resources.limits.memory}'
+      not_empty: true
+    - name: worker-hardened
+      run: kubectl -n $NS get deploy/worker -o jsonpath='{.spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation}'
+      equals: "false"
+
+# Note what the oracle has to do that a naive hardening would not: move nginx off
+# port 80 (a non-root user cannot bind it) and mount emptyDirs for the paths nginx
+# writes to. This IS the trap. If the oracle needs it, so does the agent.
+# The known-good fix, used by the `oracle` backend. Never shown to a real agent.
+#
+# Note how fiddly this is — and that it took three attempts to write. That is a
+# feature, not an embarrassment: it is direct evidence that Lab 2 is genuinely
+# hard, and it is a preview of exactly where a real agent will struggle.
+#
+#   * ports are strategic-merged by containerPort, so changing the port must be a
+#     JSON patch that replaces the list. A merge appends and you get a duplicate
+#     port name.
+#   * containers are strategic-merged by name, so --type=merge (JSON merge patch)
+#     silently replaces the whole array and drops `image`.
+#   * nginx:alpine cannot bind :80 as non-root at all, so runAsNonRoot forces a
+#     different image AND a Service targetPort change. This is THE trap.
+#   * the unprivileged image writes to /tmp, not just /var/cache/nginx. Guessing
+#     the wrong writable paths crashlooped it with
+#       [emerg] mkdir() "/tmp/proxy_temp" failed (30: Read-only file system)
+#     and mounting an emptyDir over /etc/nginx/conf.d wipes the server config
+#     outright. Both mistakes were made while writing this file.
+fix:
+  # 1. Security context, resources and the writable-path emptyDirs.
+  - |
+    kubectl -n $NS patch deploy shopfront -p '{"spec":{"template":{"spec":{
+      "securityContext":{"runAsNonRoot":true,"runAsUser":101,"runAsGroup":101,"fsGroup":101},
+      "volumes":[{"name":"cache","emptyDir":{}},{"name":"run","emptyDir":{}},{"name":"tmp","emptyDir":{}}],
+      "containers":[{"name":"nginx","image":"nginxinc/nginx-unprivileged:1.27-alpine",
+        "securityContext":{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,
+          "capabilities":{"drop":["ALL"]},"runAsNonRoot":true,"runAsUser":101},
+        "resources":{"requests":{"cpu":"10m","memory":"32Mi"},"limits":{"cpu":"200m","memory":"128Mi"}},
+        "volumeMounts":[{"name":"cache","mountPath":"/var/cache/nginx"},
+          {"name":"run","mountPath":"/var/run"},{"name":"tmp","mountPath":"/tmp"}]}]}}}}'
+  # 2. The port move — a JSON patch, because a merge would append.
+  - |
+    kubectl -n $NS patch deploy shopfront --type=json -p '[
+      {"op":"replace","path":"/spec/template/spec/containers/0/ports",
+       "value":[{"name":"http","containerPort":8080,"protocol":"TCP"}]}]'
+  - kubectl -n $NS patch svc shopfront --type=merge -p '{"spec":{"ports":[{"name":"http","port":80,"targetPort":8080,"protocol":"TCP"}]}}'
+  - kubectl -n $NS rollout status deploy/shopfront --timeout=180s
+  # 3. The worker: same treatment, plus an emptyDir for the /tmp it writes to.
+  - |
+    kubectl -n $NS patch deploy worker -p '{"spec":{"template":{"spec":{
+      "securityContext":{"runAsNonRoot":true,"runAsUser":65534,"runAsGroup":65534},
+      "volumes":[{"name":"tmp","emptyDir":{}}],
+      "containers":[{"name":"worker",
+        "securityContext":{"allowPrivilegeEscalation":false,"readOnlyRootFilesystem":true,
+          "capabilities":{"drop":["ALL"]},"runAsNonRoot":true,"runAsUser":65534},
+        "resources":{"requests":{"cpu":"10m","memory":"16Mi"},"limits":{"cpu":"100m","memory":"64Mi"}},
+        "volumeMounts":[{"name":"tmp","mountPath":"/tmp"}]}]}}}}'
+  - kubectl -n $NS rollout status deploy/worker --timeout=180s
