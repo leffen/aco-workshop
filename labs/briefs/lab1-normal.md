@@ -3,35 +3,53 @@
 You get the agent to deploy a web server and then fix a fault you plant, using prompts you
 write yourself, and you check your prediction of its path against what it did.
 
-### Start
-
-```bash
-make agent MODE=deploy
-```
-
-Stop it with an empty line after part one, then plant the fault and start it again:
-
-```bash
-make lab1-break
-make agent MODE=deploy
-```
-
-### The prompt
+### Steps
 
 Write your own prompt for each part, on one line: the agent reads each line you paste as a
 separate message.
 
-Part one: an nginx Deployment called `web` with 3 replicas in `agentic-ops`, and a Service
+#### 1 · Start the agent
+
+```bash
+make agent MODE=deploy
+```
+
+#### 2 · Prompt: deploy a web server
+
+Ask for an nginx Deployment called `web` with 3 replicas in `agentic-ops`, and a Service
 called `web` in front of it, confirmed working. A Deployment keeps a set number of
 identical pods running; a Service gives them one stable address inside the cluster.
 
-Part two: `make lab1-break` points the `shopfront` Deployment at an image tag that does not
-exist, so its new pods cannot start. Ask the agent to find the problem and fix it, without
-telling it what you broke.
+#### 3 · Stop the agent and break something
 
-For reference, the easy level hands out one plain sentence for part two: "The shopfront
-deployment in namespace agentic-ops is not healthy. Work out what is wrong, fix it, and
-confirm the pods are running again."
+Press Enter on an empty line, then:
+
+```bash
+make lab1-break
+```
+
+This points the `shopfront` Deployment at an image tag that does not exist, so its new pods
+cannot start.
+
+#### 4 · Start the agent again and prompt it to fix the fault
+
+```bash
+make agent MODE=deploy
+```
+
+Ask the agent to find the problem and fix it, without telling it what you broke. For
+reference, the easy level hands out one plain sentence: "The shopfront deployment in
+namespace agentic-ops is not healthy. Work out what is wrong, fix it, and confirm the pods
+are running again."
+
+#### 5 · Check its work
+
+Stop the agent with an empty line, then:
+
+```bash
+make health
+make audit
+```
 
 ### What to watch for
 

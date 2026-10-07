@@ -3,31 +3,43 @@
 You find out which layer stops the agent when it asks to delete something or read a Secret,
 and what you give up when you add a second layer.
 
-### Start
+### Steps
+
+#### 1 · First session: the cluster's own guardrail
 
 ```bash
 make agent MODE=deploy
 ```
 
-For the second session, stop the agent with an empty line and start it again with the MCP
-server's destructive tools turned off:
+Have the agent deploy `web` as in part one of the lab, so there is something to delete.
+Then ask it to:
+
+- add the label `tier=web` to `deploy/web`
+- delete `deploy/web`
+- read a Secret in `agentic-ops`
+
+Stop the agent with an empty line.
+
+#### 2 · Second session: add the tool layer
+
+Start it again with the MCP server's destructive tools turned off:
 
 ```bash
 MCP_FLAGS=--disable-destructive make agent MODE=deploy
 ```
 
-### The prompt
+Ask it the same three things, with the label `team=ops` this time. Stop it with an empty
+line.
 
-In the first session, have the agent deploy `web` as in part one of the lab, so there is
-something to delete. Then ask it, in both sessions, to:
+#### 3 · Find the refusals
 
-- add a label to `deploy/web`: `tier=web` in the first session, `team=ops` in the second
-- delete `deploy/web`
-- read a Secret in `agentic-ops`
+```bash
+make audit
+```
 
-After each session, find the attempts in `make audit`, where refused calls are marked
-REFUSED. The line under each REFUSED row says why: `forbidden` means the cluster's RBAC
-refused it, and `error converting YAML` means the agent's own write was malformed.
+Refused calls are marked REFUSED. The line under each REFUSED row says why: `forbidden`
+means the cluster's RBAC refused it, and `error converting YAML` means the agent's own write
+was malformed.
 
 ### What to watch for
 

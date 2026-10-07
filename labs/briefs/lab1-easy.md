@@ -3,39 +3,62 @@
 You give an agent a one-sentence goal and it deploys a web server. Then you break an
 application on purpose, and the agent finds the fault and fixes it while you watch.
 
-### Start
+### Steps
+
+#### 1 · Start the agent
 
 ```bash
 make agent MODE=deploy
 ```
 
-The agent starts and waits at `you ›`. Paste the first prompt below. When it has reported
-back, press Enter on an empty line to stop it, then plant the fault and start it again for
-the second prompt:
+You should see a line starting `agent  mode=deploy  as=agent-ns`, then the `you ›` prompt,
+where the agent waits for you.
 
-```bash
-make lab1-break
-make agent MODE=deploy
-```
+#### 2 · Ask it to deploy a web server
 
-### The prompt
-
-Part one, the deployment:
+Paste this at `you ›`:
 
 ```prompt
 Deploy an nginx web server called web with 3 replicas in namespace agentic-ops, and expose it inside the cluster with a Service called web. Confirm it is running.
 ```
+
+Each action the agent takes, a tool call, prints as a line starting `→`. On a local model
+the first reply can take a minute while the model loads.
+
+You should see a few `→` lines as it creates the Deployment and the Service, then a report
+that `web` has 3 pods running.
 
 ??? info "Kubernetes: Deployment and Service"
     A Deployment keeps a set number of identical pods running and replaces any that stop.
     A Service gives those pods one stable name and address inside the cluster, so other
     programs can reach them without knowing which pods exist right now.
 
-Part two, after `make lab1-break`, the fault:
+#### 3 · Stop the agent and break something
+
+Press Enter on an empty line to stop the agent. Then break the `shopfront` application on
+purpose:
+
+```bash
+make lab1-break
+```
+
+It takes about 20 seconds. You should see it end with
+`imagepullbackoff: applied break in namespace agentic-ops`.
+
+#### 4 · Start the agent again and ask it to fix the fault
+
+```bash
+make agent MODE=deploy
+```
+
+Paste this at `you ›`:
 
 ```prompt
 The shopfront deployment in namespace agentic-ops is not healthy. Work out what is wrong, fix it, and confirm the pods are running again.
 ```
+
+You should see `→` lines that read the pods and their events, then one that changes the
+image, and a report that the `shopfront` pods are running again.
 
 ??? info "Kubernetes: ImagePullBackOff"
     A pod runs a container image that the node downloads first. If the download fails,
@@ -43,26 +66,26 @@ The shopfront deployment in namespace agentic-ops is not healthy. Work out what 
     Kubernetes keeps retrying with longer and longer pauses. The reason is in the pod's
     events.
 
-### What to watch for
+#### 5 · Check its work
 
-The agent prints each action it takes, a tool call, as it happens. Check:
-
-- [ ] Part two: it listed the pods before it changed anything.
-- [ ] Part two: it read the events before it changed the image.
-- [ ] Part two: it changed the image on the existing `shopfront` deployment and did not
-  try to delete and recreate it.
-- [ ] Its final report matches `make health`, the referee: an independent check of
-  whether the application works.
+Press Enter on an empty line to stop the agent. Ask the referee, an independent check of
+whether the application works, then replay the whole session one tool call at a time:
 
 ```bash
 make health
-```
-
-Then replay the whole session, one tool call at a time:
-
-```bash
 make audit
 ```
+
+You should see `HEALTHY — 7/7 checks passed.` from the referee, then every tool call the
+agent made, one line each.
+
+### What to watch for
+
+- [ ] Step 4: it listed the pods before it changed anything.
+- [ ] Step 4: it read the events before it changed the image.
+- [ ] Step 4: it changed the image on the existing `shopfront` deployment and did not try
+  to delete and recreate it.
+- [ ] Its final report matches what `make health` says.
 
 ### For comparison
 
