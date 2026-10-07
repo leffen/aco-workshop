@@ -19,6 +19,13 @@ def _text(content):
     return " ".join(b.get("text", "") for b in content or [] if isinstance(b, dict))
 
 
+def _message(e):
+    """The event's message object, or {}. Not every event's `message` is one:
+    system/permission_denied carries the refusal as plain text."""
+    m = e.get("message")
+    return m if isinstance(m, dict) else {}
+
+
 def summarise(events):
     calls, by_id, last_text, turns, result = [], {}, "", 0, None
     peak = None     # largest single request: what must fit the context window
@@ -26,12 +33,15 @@ def summarise(events):
         kind = e.get("type")
         if kind == "assistant":
             turns += 1
-            u = e.get("message", {}).get("usage")
+            u = _message(e).get("usage")
             if u:
                 size = sum(u.get(k) or 0 for k in (
                     "input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
                 peak = size if peak is None else max(peak, size)
-            for b in e.get("message", {}).get("content", []):
+            content = _message(e).get("content")
+            for b in content if isinstance(content, list) else []:
+                if not isinstance(b, dict):
+                    continue
                 if b.get("type") == "text" and b.get("text", "").strip():
                     last_text = b["text"].strip()
                 elif b.get("type") == "tool_use":
@@ -40,9 +50,9 @@ def summarise(events):
                     by_id[b["id"]] = call
                     calls.append(call)
         elif kind == "user":
-            content = e.get("message", {}).get("content", [])
+            content = _message(e).get("content")
             for b in content if isinstance(content, list) else []:
-                if b.get("type") == "tool_result" and b.get("tool_use_id") in by_id:
+                if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id") in by_id:
                     call = by_id[b["tool_use_id"]]
                     call["result_summary"] = _text(b.get("content"))[:SUMMARY_CHARS]
                     call["is_error"] = bool(b.get("is_error"))
