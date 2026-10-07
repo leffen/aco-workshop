@@ -279,11 +279,47 @@ def audit(mode, out):
                                  "sa": MODES[mode].sa, **redact(c)}) + "\n")
 
 
+HISTORY = ROOT / ".local" / "agent-history"
+HISTORY_LINES = 500
+
+
+def history(path=HISTORY):
+    """Up and down arrow at `you ›`, kept across sessions, so a prompt from the
+    last run is one keypress away. -> a function that records one line.
+
+    readline is stdlib, but not on every platform: without it the prompt still
+    works, just with no history. Saved after every line, so a crash keeps it.
+    Never the agent's: this is what you typed, in a gitignored file."""
+    try:
+        import readline
+    except ImportError:
+        return lambda line: None
+    readline.set_auto_history(False)    # recorded below, without repeats
+    readline.set_history_length(HISTORY_LINES)
+    try:
+        readline.read_history_file(path)
+    except OSError:
+        pass                            # first run: nothing to read yet
+
+    def add(line):
+        n = readline.get_current_history_length()
+        if not line or (n and readline.get_history_item(n) == line):
+            return
+        readline.add_history(line)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            readline.write_history_file(path)
+        except OSError:
+            pass                        # history is a convenience, never a failure
+    return add
+
+
 def repl(mode, s):
     b = backend()
+    remember = history()
     net = safety_net(mode, s, say=lambda m: print(f"\033[33m{m}\033[0m"))
     print(f"agent  mode={mode}  as={MODES[mode].sa}  namespace={NS}  model={b.model} ({b.name})")
-    print(f"context {s['context']}  (pinned)   empty line or 'exit' to stop")
+    print(f"context {s['context']}  (pinned)   empty line or 'exit' to stop, ↑ for earlier lines")
     print(f"safety net {'on: SAFETY_NET=off to watch without it' if net else 'off'}\n")
     print("\033[2mType a goal in plain words, e.g. \"deploy nginx with 3 replicas\".\n"
           "Commands the lab needs run here too, as you: /health, /break, /audit. "
@@ -297,6 +333,7 @@ def repl(mode, s):
             break
         if line in ("", "exit", "quit", "/exit"):
             break
+        remember(line)
         if line.startswith("/"):
             sid = slash(mode, s, net, line, sid)
             continue
@@ -415,7 +452,8 @@ def check():
     def line(ok, msg):
         nonlocal fails
         fails += not ok
-        print(f"  {'\033[32mOK\033[0m  ' if ok else '\033[31mFAIL\033[0m'}  {msg}")
+        mark = "\033[32mOK\033[0m  " if ok else "\033[31mFAIL\033[0m"   # outside the f-string: 3.11
+        print(f"  {mark}  {msg}")
 
     # Absent on purpose: authorization is checked before lookup, so a working
     # ladder answers "forbidden" and a broken one "not found". Nothing real is
