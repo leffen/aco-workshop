@@ -13,6 +13,7 @@ make agent MODE=harden
 ```
 
 You should see `safety net on`, then the `you ›` prompt, where the agent waits for you.
+You paste goals for the agent there, and type commands that start with `/` for yourself.
 
 #### 2 · Ask it to harden the deployments
 
@@ -44,20 +45,21 @@ referee was red when it finished, its report ends with a line starting `safety n
     to `/var/cache/nginx`, `/var/run` and `/tmp`, the worker to `/tmp`. Each path needs an
     `emptyDir`, a writable volume mounted over it.
 
-#### 3 · Stop the agent and check its work
+#### 3 · Check its work
 
-Press Enter on an empty line to stop the agent. Ask the referee yourself, then replay the
+When the agent has reported back, ask the referee yourself, then replay the
 session one tool call at a time:
 
-```bash
-make health
-make audit
+```slash
+/health
+/audit
 ```
 
 You should see the referee's verdict, `HEALTHY — 7/7 checks passed.` or the checks that
-failed, then every tool call the agent made, one line each.
+failed, then every tool call the agent made, one line each. Press Enter on an empty line
+to leave the agent.
 
-Under each REFUSED row, `make audit` says why: `forbidden` means the cluster refused the
+Under each REFUSED row, `/audit` says why: `forbidden` means the cluster refused the
 call, and `error converting YAML` means the agent's own write was malformed.
 `Exit code 1` under a `Bash` row is the referee reporting red. Any other reason is
 Kubernetes rejecting what the write contained.

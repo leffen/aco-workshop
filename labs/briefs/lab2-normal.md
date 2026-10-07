@@ -23,29 +23,33 @@ non-root, drop all Linux capabilities, disallow privilege escalation, set resour
 requests and limits, and make the root filesystem read-only, while `make health`, the
 referee, stays green. The easy tab has the prompt we measured.
 
-#### 3 · Stop the agent and read what happened
+#### 3 · Read what happened
 
-Press Enter on an empty line when it has reported back, then:
+When it has reported back, type at `you ›`:
 
-```bash
-make health
-make audit
+```slash
+/health
+/audit
 ```
+
+These run as you, not as the agent. `/help` lists every command you can run there.
 
 #### 4 · Reset, improve your prompt, and run it again
 
-Rewrite your prompt with what the first run taught you, put the namespace back to the
-insecure baseline, and start the agent again:
+Put the namespace back to the insecure baseline:
 
-```bash
-make insecure
-make agent MODE=harden
+```slash
+/insecure
 ```
+
+Then paste your prompt, rewritten with what the first run taught you. The agent starts a
+new conversation after `/insecure`, so the second run does not remember the first. Press
+Enter on an empty line to leave the agent when you are done.
 
 ### What to watch for
 
 In the first run, find where the referee first went red and the change just before it.
-`make audit` replays the session and prints, under each REFUSED row, why the call failed:
+`/audit` replays the session and prints, under each REFUSED row, why the call failed:
 `forbidden` means the cluster refused it, and `error converting YAML` means the agent's
 own write was malformed. `Exit code 1` under a `Bash` row is the referee reporting red.
 Any other reason is Kubernetes rejecting what the write contained.

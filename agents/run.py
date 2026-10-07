@@ -17,6 +17,7 @@ import argparse, contextlib, json, os, pathlib, re, shutil, signal, subprocess, 
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+from agents import commands as cmds
 from agents import kubeconfig as kc
 from agents import safety_net as sn
 from agents.modes import (MODES, backend, backend_env, claude_command, digest_matches,
@@ -277,8 +278,9 @@ def repl(mode, s):
     print(f"agent  mode={mode}  as={MODES[mode].sa}  namespace={NS}  model={b.model} ({b.name})")
     print(f"context {s['context']}  (pinned)   empty line or 'exit' to stop")
     print(f"safety net {'on: SAFETY_NET=off to watch without it' if net else 'off'}\n")
-    print("\033[2mType a goal in plain words, e.g. \"deploy nginx with 3 replicas\". "
-          "Shell commands like make go in another terminal.\033[0m\n")
+    print("\033[2mType a goal in plain words, e.g. \"deploy nginx with 3 replicas\".\n"
+          "Commands the lab needs run here too, as you: /health, /break, /audit. "
+          "/help lists them.\033[0m\n")
     sid = None
     while True:
         try:
@@ -286,8 +288,11 @@ def repl(mode, s):
         except (EOFError, KeyboardInterrupt):
             print()
             break
-        if line in ("", "exit", "quit"):
+        if line in ("", "exit", "quit", "/exit"):
             break
+        if line.startswith("/"):
+            sid = slash(mode, s, net, line, sid)
+            continue
         try:
             out = guarded_turn(mode, s, net, line, MODES[mode].max_turns, resume=sid, live=True)
         except KeyboardInterrupt:
@@ -298,6 +303,47 @@ def repl(mode, s):
         print(f"\n{out['report']}\n\033[2m{len(out['tool_calls'])} tool calls{cost}\033[0m\n")
         if out["error"]:
             print(f"\033[31m{out['error']}\033[0m\n")
+
+
+def slash(mode, s, net, line, sid):
+    """A slash command, run as you between turns. -> the conversation to resume.
+
+    One that changes the namespace starts the agent afresh: it is not told
+    what you did, which is the point of a planted fault, and it matches how
+    the labs' numbers were measured, one new session per prompt."""
+    try:
+        name, argv = cmds.plan(line)
+    except ValueError as e:
+        print(f"\033[31m{e}\033[0m\n")
+        return sid
+    if name == "help":
+        print(cmds.help_text())
+        return sid
+    if name == "new":
+        print("\033[2mnew conversation: the agent remembers nothing from before.\033[0m\n")
+        return None
+    c = cmds.COMMANDS[name]
+    print(f"\033[2m  $ {' '.join(a for a in argv if a != '--no-print-directory')}\033[0m", flush=True)
+    status = cmds.run(argv, cmds.environment(s["operator"], NS))
+    print()
+    if status == 130:
+        print("\033[33mstopped.\033[0m\n")
+    if not c.changes:
+        return sid
+    if c.divider:
+        cmds.record(argv, status)
+    if net is not None:
+        try:
+            net.observe()
+        except RuntimeError as e:
+            print(f"\033[33m{e}\033[0m")
+    lab = next((a.removeprefix("LAB=") for a in argv if a.startswith("LAB=")), None)
+    if name == "lab" and cmds.LAB_MODE.get(lab, mode) != mode:
+        print(f"\033[33mLab {lab} runs in mode {cmds.LAB_MODE[lab]}, and this agent is in "
+              f"{mode}. Press Enter to leave, then: make agent MODE={cmds.LAB_MODE[lab]}\033[0m")
+    print("\033[2mthe namespace changed, and the agent was not told. "
+          "Your next goal starts a new conversation.\033[0m\n")
+    return None
 
 
 def check():

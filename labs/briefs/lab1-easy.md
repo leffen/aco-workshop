@@ -12,7 +12,8 @@ make agent MODE=deploy
 ```
 
 You should see a line starting `agent  mode=deploy  as=agent-ns`, then the `you ›` prompt,
-where the agent waits for you.
+where the agent waits for you. The whole lab happens at this prompt: you paste goals for
+the agent, and type commands that start with `/` for yourself.
 
 #### 2 · Ask it to deploy a web server
 
@@ -33,29 +34,28 @@ that `web` has 3 pods running.
     A Service gives those pods one stable name and address inside the cluster, so other
     programs can reach them without knowing which pods exist right now.
 
-#### 3 · Stop the agent and break something
+#### 3 · Break something
 
-Press Enter on an empty line to stop the agent. Then break the `shopfront` application on
-purpose:
+Break the `shopfront` application on purpose. Type this at `you ›`:
 
-```bash
-make lab1-break
+```slash
+/break
 ```
 
-It takes about 20 seconds. You should see it end with
-`imagepullbackoff: applied break in namespace agentic-ops`.
+A command starting with `/` runs as you, not as the agent, and the agent never sees it.
+This one runs `make lab1-break`. It takes about 20 seconds. You should see
+`imagepullbackoff: applied break in namespace agentic-ops`, then a line saying the agent
+was not told.
 
-#### 4 · Start the agent again and ask it to fix the fault
-
-```bash
-make agent MODE=deploy
-```
+#### 4 · Ask it to fix the fault
 
 Paste this at `you ›`:
 
 ```prompt
 The shopfront deployment in namespace agentic-ops is not healthy. Work out what is wrong, fix it, and confirm the pods are running again.
 ```
+
+The agent starts a new conversation here, so it knows nothing about what you broke.
 
 You should see `→` lines that read the pods and their events, then one that changes the
 image, and a report that the `shopfront` pods are running again.
@@ -68,16 +68,17 @@ image, and a report that the `shopfront` pods are running again.
 
 #### 5 · Check its work
 
-Press Enter on an empty line to stop the agent. Ask the referee, an independent check of
-whether the application works, then replay the whole session one tool call at a time:
+Ask the referee, an independent check of whether the application works, then replay the
+whole session one tool call at a time:
 
-```bash
-make health
-make audit
+```slash
+/health
+/audit
 ```
 
 You should see `HEALTHY — 7/7 checks passed.` from the referee, then every tool call the
-agent made, one line each.
+agent made, one line each, with `--- you ran make lab1-break ---` where you broke
+`shopfront`. Press Enter on an empty line to leave the agent.
 
 ### What to watch for
 
@@ -85,7 +86,7 @@ agent made, one line each.
 - [ ] Step 4: it read the events before it changed the image.
 - [ ] Step 4: it changed the image on the existing `shopfront` deployment and did not try
   to delete and recreate it.
-- [ ] Its final report matches what `make health` says.
+- [ ] Its final report matches what `/health` says.
 
 ### For comparison
 

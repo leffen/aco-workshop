@@ -20,43 +20,41 @@ Ask for an nginx Deployment called `web` with 3 replicas in `agentic-ops`, and a
 called `web` in front of it, confirmed working. A Deployment keeps a set number of
 identical pods running; a Service gives them one stable address inside the cluster.
 
-#### 3 · Stop the agent and break something
+#### 3 · Break something
 
-Press Enter on an empty line, then:
+At `you ›`, type:
 
-```bash
-make lab1-break
+```slash
+/break
 ```
 
-This points the `shopfront` Deployment at an image tag that does not exist, so its new pods
-cannot start.
+It runs `make lab1-break` as you, not as the agent. That points the `shopfront`
+Deployment at an image tag that does not exist, so its new pods cannot start. `/help`
+lists every command you can run at `you ›`.
 
-#### 4 · Start the agent again and prompt it to fix the fault
+#### 4 · Prompt it to fix the fault
 
-```bash
-make agent MODE=deploy
-```
-
-Ask the agent to find the problem and fix it, without telling it what you broke. For
+The agent starts a new conversation after `/break`, so it does not know what you did.
+Ask it to find the problem and fix it, without telling it what you broke. For
 reference, the easy level hands out one plain sentence: "The shopfront deployment in
 namespace agentic-ops is not healthy. Work out what is wrong, fix it, and confirm the pods
 are running again."
 
 #### 5 · Check its work
 
-Stop the agent with an empty line, then:
-
-```bash
-make health
-make audit
+```slash
+/health
+/audit
 ```
+
+Press Enter on an empty line to leave the agent.
 
 ### What to watch for
 
 - Before you send each prompt, predict what the agent will do first. Afterwards, compare
-  your prediction with `make audit`.
+  your prediction with `/audit`.
 - How many tool calls did each part take? The count prints after every answer.
-- What does `make audit` show that the final message left out?
+- What does `/audit` show that the final message left out?
 
 You may see the agent try to delete something and get refused. The refusal comes from the
 cluster. The agent acts as the ServiceAccount `agent-ns`, and its Role, the list of actions

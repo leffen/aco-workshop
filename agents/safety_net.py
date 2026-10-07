@@ -143,6 +143,13 @@ class SafetyNet:
         self.ns, self.kubeconfig, self.say = ns, kubeconfig, say
         self.snap = snapshot(ns, kubeconfig) if healthy(kubeconfig, ns) else None
 
+    def observe(self):
+        """You changed the namespace between turns, with a slash command. If it
+        is healthy now, that is the state to come back to; if not, the last
+        healthy one still is."""
+        if healthy(self.kubeconfig, self.ns):
+            self.snap = snapshot(self.ns, self.kubeconfig)
+
     def after_turn(self, record):
         if healthy(self.kubeconfig, self.ns):
             self.snap = snapshot(self.ns, self.kubeconfig)

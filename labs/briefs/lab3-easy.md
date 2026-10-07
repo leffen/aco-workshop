@@ -18,7 +18,8 @@ agent:
 make agent MODE=incident
 ```
 
-You should see `safety net off`, then the `you ›` prompt. In incident mode nothing
+You should see `safety net off`, then the `you ›` prompt, where you paste goals for the
+agent and type commands that start with `/` for yourself. In incident mode nothing
 restores the application if the agent breaks it further.
 
 #### 2 · Ask it to fix the incident
@@ -45,20 +46,20 @@ a minute.
     fails, the pod shows ImagePullBackOff and Kubernetes keeps retrying with longer and
     longer pauses. The reason is in the pod's events.
 
-#### 3 · Stop the agent and check its work
+#### 3 · Check its work
 
-Press Enter on an empty line to stop the agent. Ask the referee yourself, then replay the
+When the agent has reported back, ask the referee yourself, then replay the
 session:
 
-```bash
-make health
-make audit
+```slash
+/health
+/audit
 ```
 
 You should see `HEALTHY — 7/7 checks passed.` if the fix held, then every tool call the
-agent made, one line each.
+agent made, one line each. Press Enter on an empty line to leave the agent.
 
-Under each REFUSED row, `make audit` says why: `forbidden` means the cluster refused the
+Under each REFUSED row, `/audit` says why: `forbidden` means the cluster refused the
 call, and `error converting YAML` means the agent's own write was malformed.
 `Exit code 1` under a `Bash` row is the referee reporting red. Any other reason is
 Kubernetes rejecting what the write contained.

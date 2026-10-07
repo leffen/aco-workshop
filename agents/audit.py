@@ -37,6 +37,12 @@ def render(rows, colour=True):
             a = r.get("args", {})
             lines.append(f"{dim}--- lab {a.get('lab')} \u00b7 {a.get('level')} ---{end}")
             continue
+        if r.get("mode") == "you":
+            # A slash command that changed the namespace between turns: you
+            # did it, not the agent, so it is a divider too.
+            a = r.get("args", {})
+            lines.append(f"{dim}--- you ran {a.get('command')} ---{end}")
+            continue
         calls += 1
         name = r["name"].removeprefix("mcp__k8s__")
         args = json.dumps(r.get("args", {}))[:60]
