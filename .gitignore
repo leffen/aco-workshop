@@ -5,7 +5,9 @@ __pycache__/
 *.pyc
 .DS_Store
 .cache/
-.env
+# Any copy of .env can hold a key (Finder makes ".env copy"); only the example is tracked.
+.env*
+!.env.example
 node_modules/
 dist/
 web/.astro/

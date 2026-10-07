@@ -138,9 +138,27 @@ def with_vars(cmd):
     return cmd
 
 
+def waiting_line(b):
+    """What a live turn is waiting for, before its first event. A local model's
+    first reply loads it into memory, and a silent minute looks like a hang."""
+    if b.base_url is not None:
+        try:
+            loaded = {m.get("name") for m in _get_json(f"{b.base_url}/api/ps").get("models", [])}
+        except OSError:
+            loaded = {b.model}          # can't tell; don't claim a load
+        if b.model not in loaded:
+            return f"loading {b.model} into memory first; that can take a minute. Ctrl-C stops"
+    return "thinking… Ctrl-C stops this turn"
+
+
 def turn(mode, s, prompt, max_turns, resume=None, live=False):
-    """One headless turn. Streams events; renders tool calls if live."""
+    """One headless turn. Streams events; renders tool calls if live.
+
+    Ctrl-C stops claude, waits for it, and re-raises: a turn never leaves a
+    claude running in the background, still holding the namespace's credentials."""
     cmd = with_vars(claude_command(mode, s["mcp"], str(REFEREE), max_turns, resume=resume))
+    if live:
+        print(f"\033[2m  {waiting_line(backend())}\033[0m", flush=True)
     # stderr to a file, not a pipe: a chatty stderr would fill the pipe buffer
     # and hang the run while we only read stdout.
     with tempfile.TemporaryFile(mode="w+") as err:
@@ -149,11 +167,20 @@ def turn(mode, s, prompt, max_turns, resume=None, live=False):
         p.stdin.write(prompt)
         p.stdin.close()
         events = []
-        for line in p.stdout:
-            ev = read_jsonl([line])
-            events += ev
-            if live:
-                render(ev)
+        try:
+            for line in p.stdout:
+                ev = read_jsonl([line])
+                events += ev
+                if live:
+                    render(ev)
+        except KeyboardInterrupt:
+            p.terminate()
+            try:
+                p.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.wait()
+            raise
         p.wait()
         err.seek(0)
         stderr = err.read()
@@ -175,14 +202,26 @@ def safety_net(mode, s, say):
 
 
 def guarded_turn(mode, s, net, prompt, max_turns, **kw):
-    """A turn, then the safety net's verdict on it: off, not needed, restored."""
-    out = turn(mode, s, prompt, max_turns, **kw)
-    if net is None:
-        out["safety_net"] = "off"
-        return out
+    """A turn, then the safety net's verdict on it: off, not needed, restored.
+
+    An interrupted turn may have changed the namespace half-way, so the net
+    still gets its look before the interrupt goes on."""
+    out = {}
     def record(msg, changes):
         audit(mode, {"session_id": out.get("session_id"), "tool_calls": [
             {"name": "safety_net", "args": changes, "result_summary": msg, "is_error": False}]})
+    try:
+        out = turn(mode, s, prompt, max_turns, **kw)
+    except KeyboardInterrupt:
+        if net is not None:
+            try:
+                net.after_turn(record)
+            except RuntimeError:
+                pass        # the interrupt is the news; a failed net must not hide it
+        raise
+    if net is None:
+        out["safety_net"] = "off"
+        return out
     try:
         out["safety_net"] = net.after_turn(record)
     except RuntimeError as e:
@@ -238,15 +277,22 @@ def repl(mode, s):
     print(f"agent  mode={mode}  as={MODES[mode].sa}  namespace={NS}  model={b.model} ({b.name})")
     print(f"context {s['context']}  (pinned)   empty line or 'exit' to stop")
     print(f"safety net {'on: SAFETY_NET=off to watch without it' if net else 'off'}\n")
+    print("\033[2mType a goal in plain words, e.g. \"deploy nginx with 3 replicas\". "
+          "Shell commands like make go in another terminal.\033[0m\n")
     sid = None
     while True:
         try:
             line = input("you › ").strip()
-        except EOFError:
+        except (EOFError, KeyboardInterrupt):
+            print()
             break
         if line in ("", "exit", "quit"):
             break
-        out = guarded_turn(mode, s, net, line, MODES[mode].max_turns, resume=sid, live=True)
+        try:
+            out = guarded_turn(mode, s, net, line, MODES[mode].max_turns, resume=sid, live=True)
+        except KeyboardInterrupt:
+            print("\n\033[33mstopped. Type another goal, or press Enter to leave.\033[0m\n")
+            continue
         sid = out["session_id"] or sid
         cost = f"  ${out['cost_usd']:.3f}" if out["cost_usd"] else ""
         print(f"\n{out['report']}\n\033[2m{len(out['tool_calls'])} tool calls{cost}\033[0m\n")
@@ -381,4 +427,7 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)       # Ctrl-C outside the REPL: quiet, with the conventional status

@@ -17,6 +17,7 @@ MISSING=0
 ok()   { printf '  \033[32mOK\033[0m       %s\n' "$1"; }
 bad()  { printf '  \033[31mMISSING\033[0m  %s\n' "$1"; MISSING=$((MISSING+1)); }
 note() { printf '           %s\n' "$1"; }
+warn() { printf '  \033[33mLOW\033[0m      %s\n' "$1"; }   # worth fixing, but not missing
 
 echo ""
 echo "Tools"
@@ -54,12 +55,14 @@ if docker info >/dev/null 2>&1; then
     elif docker pull -q "$img" >/dev/null 2>&1; then ok "$img"
     else bad "$img (pull failed)"; fi
   done
-  # Docker's own disk, inside its VM: a full one leaves every node tainted
-  # disk-pressure and the cluster schedules nothing. busybox was just pulled.
+  # Docker's own disk, inside its VM. k3d.sh lowers the kubelet's eviction
+  # threshold to 1%, and the whole workshop came up and passed verify with 2.7 GB
+  # free (2026-10-06), so only below 2 GB is it missing. Under 5 GB is a warning.
   FREE_GB=$(docker run --rm busybox:1.36 df -k / 2>/dev/null | awk 'NR==2 {print int($4/1048576)}')
   if [ -z "$FREE_GB" ]; then bad "could not measure Docker's free disk"
   elif [ "$FREE_GB" -ge 5 ]; then ok "Docker has ${FREE_GB} GB of disk free"
-  else bad "Docker has only ${FREE_GB} GB of disk free; 5 GB or more is needed — run: docker system prune"; fi
+  elif [ "$FREE_GB" -ge 2 ]; then warn "Docker has ${FREE_GB} GB of disk free: enough, but tight. docker system prune frees more"
+  else bad "Docker has only ${FREE_GB} GB of disk free; 2 GB or more is needed — run: docker system prune"; fi
 else
   bad "docker is installed but not running — start Docker Desktop, then re-run"
 fi
