@@ -3,10 +3,12 @@
 You change one thing about how the hardening agent runs, measure it over three runs, and
 decide whether three runs can tell you anything.
 
-### Start
+### Steps
 
-Start the eval within the first ten minutes and work through the questions while it runs.
-Pick exactly one change:
+Start the eval within the first ten minutes and work through the questions below while it
+runs.
+
+#### 1 · Pick exactly one change
 
 - a line in `agents/prompts/harden.md`, the system prompt
 - the safety net: `ACO_SAFETY_NET=0` turns it off for `make eval`. Off is our baseline
@@ -15,7 +17,9 @@ Pick exactly one change:
 `MCP_FLAGS` from Lab 1 hard is not on the list: both flags remove the tool that writes, so
 every run fails by construction.
 
-Then measure it. Three runs take about 20 minutes:
+#### 2 · Measure it over three runs
+
+Three runs take about 20 minutes:
 
 ```bash
 ACO_EXPERIMENT=mine-prompt make eval SCENARIO=harden-restricted N=3 AGENT=claude
@@ -23,12 +27,18 @@ ACO_EXPERIMENT=mine-prompt make eval SCENARIO=harden-restricted N=3 AGENT=claude
 
 Name the experiment after what you changed, `mine-net` for the safety net, so two tries
 are never pooled. Each run starts from a reset namespace with the measured prompt from the
-easy tab.
+easy tab. To watch one run live while you wait, use `make agent MODE=harden` and paste the
+easy tab's prompt.
 
-### The prompt
+#### 3 · Undo your change
 
-The scenario supplies it. To watch one run live first, use `make agent MODE=harden` and
-paste the easy tab's prompt.
+When you have your answers, undo a prompt change and discard your runs, which were
+appended to `evals/results/harden-restricted.jsonl`:
+
+```bash
+git checkout agents/prompts/harden.md
+git checkout evals/results/harden-restricted.jsonl
+```
 
 ### What to watch for
 
@@ -49,14 +59,6 @@ record's `safety_net` field says what the net did, for example off, not needed o
   Kubernetes, 31 of them on YAML syntax, and only 8 touched the actual fix (the
   unprivileged image or port 8080).
 - What would you need to know before shipping this change to everyone?
-
-Undo a prompt change, and discard your runs, which were appended to
-`evals/results/harden-restricted.jsonl`:
-
-```bash
-git checkout agents/prompts/harden.md
-git checkout evals/results/harden-restricted.jsonl
-```
 
 ### For comparison
 

@@ -7,7 +7,9 @@ You give an agent a broken deployment and one plain sentence, and it finds the f
 fixes it while nobody types `kubectl`. You check whether it found the cause or only the
 symptom.
 
-### Start
+### Steps
+
+#### 1 · Start the agent
 
 `make lab LAB=3 LEVEL=easy` has reset the namespace and broken `shopfront`. Start the
 agent:
@@ -16,15 +18,20 @@ agent:
 make agent MODE=incident
 ```
 
-The agent prints `safety net off` and waits at `you ›`. In incident mode nothing restores
-the application if the agent breaks it further. Paste the prompt below, and when it has
-reported back, press Enter on an empty line to stop it.
+You should see `safety net off`, then the `you ›` prompt. In incident mode nothing
+restores the application if the agent breaks it further.
 
-### The prompt
+#### 2 · Ask it to fix the incident
+
+Paste this at `you ›`:
 
 ```prompt
 The shopfront deployment in namespace agentic-ops is not healthy. Work out what is wrong, fix it, and confirm the pods are running again.
 ```
+
+You should see `→` lines that read events and pods, then a write, then a `→ Bash` line
+running the referee, and a report. The median of our 15 runs with `gpt-oss:20b` was under
+a minute.
 
 ??? info "Kubernetes: symptom and cause"
     A pod that will not start is a symptom. The cause is the reason it cannot start: here,
@@ -38,6 +45,24 @@ The shopfront deployment in namespace agentic-ops is not healthy. Work out what 
     fails, the pod shows ImagePullBackOff and Kubernetes keeps retrying with longer and
     longer pauses. The reason is in the pod's events.
 
+#### 3 · Stop the agent and check its work
+
+Press Enter on an empty line to stop the agent. Ask the referee yourself, then replay the
+session:
+
+```bash
+make health
+make audit
+```
+
+You should see `HEALTHY — 7/7 checks passed.` if the fix held, then every tool call the
+agent made, one line each.
+
+Under each REFUSED row, `make audit` says why: `forbidden` means the cluster refused the
+call, and `error converting YAML` means the agent's own write was malformed.
+`Exit code 1` under a `Bash` row is the referee reporting red. Any other reason is
+Kubernetes rejecting what the write contained.
+
 ### What to watch for
 
 The agent prints each action it takes, a tool call, as a line starting `→`. Check:
@@ -48,18 +73,6 @@ The agent prints each action it takes, a tool call, as a line starting `→`. Ch
 - [ ] It ran the referee, a `→ Bash` line with `referee.sh`, before it reported back.
 - [ ] Its report names the cause, the wrong image tag, and not only the symptom, the pod
   that would not start.
-
-Then ask the referee yourself, and replay the session:
-
-```bash
-make health
-make audit
-```
-
-Under each REFUSED row, `make audit` says why: `forbidden` means the cluster refused the
-call, and `error converting YAML` means the agent's own write was malformed.
-`Exit code 1` under a `Bash` row is the referee reporting red. Any other reason is
-Kubernetes rejecting what the write contained.
 
 ### For comparison
 

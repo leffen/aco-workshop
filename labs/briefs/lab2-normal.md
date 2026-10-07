@@ -4,30 +4,43 @@ You get the agent to harden two insecure deployments without breaking the applic
 using a prompt you write yourself. Then you improve the prompt with what the first run
 taught you, and run it again.
 
-### Start
-
-```bash
-make agent MODE=harden
-```
-
-Stop it with an empty line when it has reported back. Before the second run, reset the
-namespace to the insecure baseline and start the agent again:
-
-```bash
-make insecure
-make agent MODE=harden
-```
-
-### The prompt
+### Steps
 
 Write your own prompt, on one line: the agent reads each line you paste as a separate
 message.
+
+#### 1 · Start the agent
+
+```bash
+make agent MODE=harden
+```
+
+#### 2 · Prompt: harden both deployments
 
 The namespace `agentic-ops` runs `shopfront`, nginx behind a Service, and `worker`, a
 busybox loop. Both run as root with no resource limits. Ask the agent to run them as
 non-root, drop all Linux capabilities, disallow privilege escalation, set resource
 requests and limits, and make the root filesystem read-only, while `make health`, the
 referee, stays green. The easy tab has the prompt we measured.
+
+#### 3 · Stop the agent and read what happened
+
+Press Enter on an empty line when it has reported back, then:
+
+```bash
+make health
+make audit
+```
+
+#### 4 · Reset, improve your prompt, and run it again
+
+Rewrite your prompt with what the first run taught you, put the namespace back to the
+insecure baseline, and start the agent again:
+
+```bash
+make insecure
+make agent MODE=harden
+```
 
 ### What to watch for
 
@@ -48,8 +61,7 @@ writable volume mounted over it, or the pod crash-loops.
 If the referee was red when the agent finished, the safety net restored the last healthy
 state and printed a line starting `safety net:`.
 
-Now rewrite your prompt with what you know, reset with `make insecure`, and run it again.
-Did it pass? Did it get further before the first red?
+After the second run: did it pass? Did it get further before the first red?
 
 ### For comparison
 
