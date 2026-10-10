@@ -51,7 +51,7 @@ env_file() {
     say ".env exists; leaving it as it is"
   else
     cp .env.example .env
-    say "created .env from .env.example. Put your ANTHROPIC_API_KEY in it."
+    say "created .env from .env.example. Pick your agent harness (ACO_HARNESS) and put its key in it."
   fi
 }
 

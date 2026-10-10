@@ -21,7 +21,7 @@ warn() { printf '  \033[33mLOW\033[0m      %s\n' "$1"; }   # worth fixing, but n
 
 echo ""
 echo "Tools"
-for t in git docker kubectl k3d python3 claude npx; do
+for t in git docker kubectl k3d python3 npx; do
   if command -v "$t" >/dev/null 2>&1; then ok "$t"; else bad "$t — run: make install"; fi
 done
 if python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null; then
@@ -75,54 +75,58 @@ else
   bad "$MCP_PACKAGE could not be fetched"
 fi
 
-case "$BACKEND" in
-  ollama)
-    if ! command -v ollama >/dev/null 2>&1; then
-      bad "ollama (the model backend is $MODEL, local)"
-    elif ! curl -s -m 5 "$BASE_URL/api/tags" >/dev/null 2>&1; then
-      bad "ollama is installed but not answering at $BASE_URL — run: ollama serve"
-    elif curl -s -m 5 "$BASE_URL/api/tags" | python3 -c '
+# The harness first: until one is chosen there is no telling which key it needs,
+# so nothing is asked for. Names come from generic_agent/run.py, like the pins.
+HARNESSES="claude, $(python3 -c 'import sys; sys.path.insert(0, "."); from generic_agent.run import BACKENDS; print(", ".join(sorted(BACKENDS)))' 2>/dev/null)"
+HARNESS="${ACO_HARNESS:-}"
+if [ -z "$HARNESS" ]; then
+  bad "no agent harness selected — set ACO_HARNESS in .env to one of: $HARNESSES"
+elif [ "$HARNESS" = claude ]; then
+  if command -v claude >/dev/null 2>&1; then ok "claude (harness claude)"
+  else bad "claude — run: make install"; fi
+  case "$BACKEND" in
+    ollama)
+      if ! command -v ollama >/dev/null 2>&1; then
+        bad "ollama (the model backend is $MODEL, local)"
+      elif ! curl -s -m 5 "$BASE_URL/api/tags" >/dev/null 2>&1; then
+        bad "ollama is installed but not answering at $BASE_URL — run: ollama serve"
+      elif curl -s -m 5 "$BASE_URL/api/tags" | python3 -c '
 import json, sys
 tags = json.load(sys.stdin)
 sys.exit(0 if any(m["name"] == sys.argv[1] and m["digest"] == sys.argv[2]
                   for m in tags.get("models", [])) else 1)' "$MODEL" "$DIGEST"; then
-      ok "$MODEL, the pinned build ${DIGEST:0:12}"
-    else
-      bad "$MODEL is not pulled, or not the pinned build — run: ollama pull $MODEL"
-    fi
-    ;;
-  anthropic)
-    # Say what is wrong with it. Never print it.
-    KEY="${ANTHROPIC_API_KEY:-}"
-    case "$KEY" in
-      "")            bad "ANTHROPIC_API_KEY is not set — put it in .env (the backend is $MODEL)" ;;
-      "sk-ant-...")  bad "ANTHROPIC_API_KEY is still the placeholder from .env.example — put your key in .env" ;;
-      *[\"\'\ ]*)    bad "ANTHROPIC_API_KEY has quotes or spaces in it — .env takes plain KEY=value" ;;
-      sk-ant-*)      ok "ANTHROPIC_API_KEY is set (backend $MODEL)" ;;
-      *)             bad "ANTHROPIC_API_KEY does not look like an Anthropic key (they start sk-ant-)" ;;
-    esac
-    ;;
-esac
-
-# Another harness (ACO_HARNESS in .env): check its key and warm its package,
-# read from generic_agent/run.py like the pins above. Say what is wrong with
+        ok "$MODEL, the pinned build ${DIGEST:0:12}"
+      else
+        bad "$MODEL is not pulled, or not the pinned build — run: ollama pull $MODEL"
+      fi
+      ;;
+    anthropic)
+      # Say what is wrong with it. Never print it.
+      KEY="${ANTHROPIC_API_KEY:-}"
+      case "$KEY" in
+        "")            bad "ANTHROPIC_API_KEY is not set — put it in .env (the backend is $MODEL)" ;;
+        "sk-ant-...")  bad "ANTHROPIC_API_KEY is still the placeholder from .env.example — put your key in .env" ;;
+        *[\"\'\ ]*)    bad "ANTHROPIC_API_KEY has quotes or spaces in it — .env takes plain KEY=value" ;;
+        sk-ant-*)      ok "ANTHROPIC_API_KEY is set (backend $MODEL)" ;;
+        *)             bad "ANTHROPIC_API_KEY does not look like an Anthropic key (they start sk-ant-)" ;;
+      esac
+      ;;
+  esac
+# Another harness: check its key and warm its package. Say what is wrong with
 # the key, never print it.
-HARNESS="${ACO_HARNESS:-claude}"
-if [ "$HARNESS" != claude ]; then
-  if H=$(python3 -c '
+elif H=$(python3 -c '
 import sys; sys.path.insert(0, ".")
 from generic_agent.run import BACKENDS, PI_PACKAGE
 b = BACKENDS[sys.argv[1]]
 print(b.key_env, PI_PACKAGE if b.harness == "pi" else "-")' "$HARNESS" 2>/dev/null); then
-    read -r KEY_ENV H_PACKAGE <<<"$H"
-    if [ -n "${!KEY_ENV:-}" ]; then ok "$KEY_ENV is set (harness $HARNESS)"
-    else bad "$KEY_ENV is not set — put it in .env (the harness is $HARNESS)"; fi
-    if [ "$H_PACKAGE" = - ]; then :
-    elif npx -y "$H_PACKAGE" --version >/dev/null 2>&1; then ok "$H_PACKAGE (cached)"
-    else bad "$H_PACKAGE could not be fetched"; fi
-  else
-    bad "ACO_HARNESS=$HARNESS is not a harness. One of: claude, $(python3 -c 'import sys; sys.path.insert(0, "."); from generic_agent.run import BACKENDS; print(", ".join(sorted(BACKENDS)))' 2>/dev/null)"
-  fi
+  read -r KEY_ENV H_PACKAGE <<<"$H"
+  if [ -n "${!KEY_ENV:-}" ]; then ok "$KEY_ENV is set (harness $HARNESS)"
+  else bad "$KEY_ENV is not set — put it in .env (the harness is $HARNESS)"; fi
+  if [ "$H_PACKAGE" = - ]; then :
+  elif npx -y "$H_PACKAGE" --version >/dev/null 2>&1; then ok "$H_PACKAGE (cached)"
+  else bad "$H_PACKAGE could not be fetched"; fi
+else
+  bad "ACO_HARNESS=$HARNESS is not a harness. One of: $HARNESSES"
 fi
 
 echo ""

@@ -46,8 +46,9 @@ make agent-check           # the agent reaches the model and the cluster, and th
 make lab LAB=1             # start a lab; LEVEL=easy|normal|hard picks your level
 ```
 
-The agent runs inside Claude Code by default. To try another harness, add `HARNESS=` to one
-command, or set `ACO_HARNESS` in `.env` to switch for good:
+Pick the harness the agent runs inside with `ACO_HARNESS` in `.env` — `claude` (Claude Code)
+or `pi-gemini`; preflight fails until one is set. To try another for a single command, add
+`HARNESS=`:
 
 ```bash
 make agent-check HARNESS=pi-gemini      # needs GEMINI_API_KEY in .env
