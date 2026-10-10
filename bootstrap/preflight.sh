@@ -64,7 +64,20 @@ if docker info >/dev/null 2>&1; then
   elif [ "$FREE_GB" -ge 2 ]; then warn "Docker has ${FREE_GB} GB of disk free: enough, but tight. docker system prune frees more"
   else bad "Docker has only ${FREE_GB} GB of disk free; 2 GB or more is needed — run: docker system prune"; fi
 else
-  bad "docker is installed but not running — start Docker Desktop, then re-run"
+  # Name the runner the CLI is pointed at: telling a Colima user to start
+  # Docker Desktop starts the wrong one.
+  CONTEXT=$(docker context show 2>/dev/null || echo default)
+  case "$CONTEXT" in
+    colima)          START="run: colima start" ;;
+    colima-*)        START="run: colima start ${CONTEXT#colima-}" ;;
+    orbstack)        START="start OrbStack" ;;
+    desktop-linux)   START="start Docker Desktop" ;;
+    rancher-desktop) START="start Rancher Desktop" ;;
+    *) if [ -n "${DOCKER_HOST:-}" ]; then START="start whatever serves DOCKER_HOST=$DOCKER_HOST"
+       elif [ "$(uname -s)" = Darwin ]; then START="start Docker Desktop, Colima or OrbStack"
+       else START="run: sudo systemctl start docker"; fi ;;
+  esac
+  bad "docker is installed but not running (context $CONTEXT) — $START, then re-run"
 fi
 
 echo ""
