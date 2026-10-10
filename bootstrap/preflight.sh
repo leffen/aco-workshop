@@ -22,12 +22,12 @@ warn() { printf '  \033[33mLOW\033[0m      %s\n' "$1"; }   # worth fixing, but n
 echo ""
 echo "Tools"
 for t in git docker kubectl k3d python3 claude npx; do
-  if command -v "$t" >/dev/null 2>&1; then ok "$t"; else bad "$t"; fi
+  if command -v "$t" >/dev/null 2>&1; then ok "$t"; else bad "$t — run: make install"; fi
 done
 if python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null; then
   ok "Python $(python3 -c 'import platform; print(platform.python_version())')"
 else
-  bad "Python 3.11 or newer (python3 is $(python3 -V 2>&1 | cut -d' ' -f2))"
+  bad "Python 3.11 or newer (python3 is $(python3 -V 2>&1 | cut -d' ' -f2)) — run: make install"
 fi
 if .venv/bin/python -c 'import yaml' >/dev/null 2>&1; then ok ".venv"
 else bad ".venv is missing or incomplete — run: make setup"; fi
@@ -103,6 +103,27 @@ sys.exit(0 if any(m["name"] == sys.argv[1] and m["digest"] == sys.argv[2]
     esac
     ;;
 esac
+
+# Another harness (ACO_HARNESS in .env): check its key and warm its package,
+# read from generic_agent/run.py like the pins above. Say what is wrong with
+# the key, never print it.
+HARNESS="${ACO_HARNESS:-claude}"
+if [ "$HARNESS" != claude ]; then
+  if H=$(python3 -c '
+import sys; sys.path.insert(0, ".")
+from generic_agent.run import BACKENDS, PI_PACKAGE
+b = BACKENDS[sys.argv[1]]
+print(b.key_env, PI_PACKAGE if b.harness == "pi" else "-")' "$HARNESS" 2>/dev/null); then
+    read -r KEY_ENV H_PACKAGE <<<"$H"
+    if [ -n "${!KEY_ENV:-}" ]; then ok "$KEY_ENV is set (harness $HARNESS)"
+    else bad "$KEY_ENV is not set — put it in .env (the harness is $HARNESS)"; fi
+    if [ "$H_PACKAGE" = - ]; then :
+    elif npx -y "$H_PACKAGE" --version >/dev/null 2>&1; then ok "$H_PACKAGE (cached)"
+    else bad "$H_PACKAGE could not be fetched"; fi
+  else
+    bad "ACO_HARNESS=$HARNESS is not a harness. One of: claude, $(python3 -c 'import sys; sys.path.insert(0, "."); from generic_agent.run import BACKENDS; print(", ".join(sorted(BACKENDS)))' 2>/dev/null)"
+  fi
+fi
 
 echo ""
 if [ "$MISSING" -eq 0 ]; then

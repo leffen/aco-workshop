@@ -163,20 +163,18 @@ def signal_group(p, sig):
         pass
 
 
-def agent_claude(scenario, prompt):
-    """Delegate to agents/run.sh, which owns model pinning and tool wiring.
-
-    The prompt goes on stdin, as run.sh's contract says. Until 2026-09-28 it was
-    never sent: every real run would have handed the agent an empty task.
-    ACO_AGENT_CMD swaps in a fake agent, so this is testable for free."""
-    script = os.environ.get("ACO_AGENT_CMD") or "agents/run.sh"
+def run_agent_process(cmd, scenario, prompt):
+    """Run an agent command under the run.sh contract: the prompt on stdin, one
+    JSON object on stdout. Shared by every real agent, so each gets the same
+    timeout and the same clean shutdown. ACO_AGENT_CMD swaps in a fake agent
+    for agent_claude, so this is testable for free."""
     turns = int(scenario.get("max_iterations", 20))
     timeout = scenario.get("timeout_seconds", 600)
     env = {**os.environ, "NS": NS, "NAMESPACE": NS, "MAX_TURNS": str(turns)}
     # Its own process group, so a timeout reaches the agent and everything it
     # started. SIGTERM first: the runner deletes its credential files on it.
     # SIGKILL alone skipped that and left kubeconfigs in TMPDIR (2026-09-29).
-    p = subprocess.Popen([script, scenario["mode"]], cwd=ROOT, env=env, text=True,
+    p = subprocess.Popen(cmd, cwd=ROOT, env=env, text=True,
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, start_new_session=True)
     timed_out = escaped = False
@@ -208,12 +206,53 @@ def agent_claude(scenario, prompt):
         res["error"] = f"timed out after {timeout}s"
         if escaped:
             res["error"] += "; a process outside the agent's group still held its output"
+    return res
+
+
+def agent_claude(scenario, prompt):
+    """Delegate to agents/run.sh, which owns model pinning and tool wiring.
+
+    The prompt goes on stdin, as run.sh's contract says. Until 2026-09-28 it was
+    never sent: every real run would have handed the agent an empty task."""
+    script = os.environ.get("ACO_AGENT_CMD") or "agents/run.sh"
+    res = run_agent_process([script, scenario["mode"]], scenario, prompt)
     # Which model ran is known here even when the agent printed nothing. A
     # timed-out run once recorded model: null, and the ladder then counted
     # 9/9 for a model that had passed 10/10.
     b = backend()
     res["model"] = res.get("model") or b.model
     res["model_digest"] = res.get("model_digest") or b.digest
+    res["harness"] = "claude-code"
+    return res
+
+
+def generic_backend(name=None):
+    """The generic runner's backend for --agent generic, from GENERIC_BACKEND.
+    Checked before any reset, so a typo costs nothing. make eval sets it from
+    HARNESS."""
+    name = name or os.environ.get("GENERIC_BACKEND")
+    try:
+        from generic_agent.run import BACKENDS
+    except ImportError:
+        raise SystemExit("--agent generic needs generic_agent/, which is missing")
+    if name not in BACKENDS:
+        raise SystemExit(f"--agent generic needs HARNESS (GENERIC_BACKEND) set to one of: "
+                         f"{', '.join(sorted(BACKENDS))} (got {name!r})")
+    return name, BACKENDS[name]
+
+
+def agent_generic(scenario, prompt):
+    """Delegate to generic_agent/run.py, a different instrument from run.sh.
+
+    The identity comes from the generic runner's own registry, never from
+    agents/modes.py: filling a missing field from there would record Claude
+    Code's model and digest for a run it never made. Known even when the
+    runner printed nothing, like agent_claude's."""
+    name, b = generic_backend()
+    res = run_agent_process([sys.executable, "generic_agent/run.py", "--backend", name,
+                             "--mode", scenario["mode"], "--json"], scenario, prompt)
+    res.update(model=b.model, model_digest=b.digest, harness=b.harness,
+               wire=b.wire, server=b.server, backend=name)
     return res
 
 
@@ -227,7 +266,8 @@ def agent_noop(scenario, prompt):
     return {"report": "[noop] did nothing", "iterations": 0, "tool_calls": []}
 
 
-AGENTS = {"claude": agent_claude, "oracle": agent_oracle, "noop": agent_noop}
+AGENTS = {"claude": agent_claude, "generic": agent_generic, "oracle": agent_oracle,
+          "noop": agent_noop}
 
 
 # --- assertions --------------------------------------------------------------
@@ -306,6 +346,10 @@ def run_once(scenario, agent, n, total, context):
         # Which model produced this number. Records from different models are
         # different series and must never be averaged together.
         "model": res.get("model"), "model_digest": res.get("model_digest"),
+        # And which harness ran it: the same model through another agent loop
+        # is another series too (docs/plans/2026-10-08-generic-agent.md).
+        "harness": res.get("harness"), "harness_version": res.get("harness_version"),
+        "wire": res.get("wire"), "server": res.get("server"), "backend": res.get("backend"),
         "experiment": experiment(),
         # The model ladder's measurements: what the model occupied, the context
         # window it had, and the largest single request it had to fit into it.
@@ -616,7 +660,9 @@ def run_pinned(args, files, ctx):
             print(f"{s['id']}: applied {args.phase} in namespace {NS} on {ctx}")
         return 0
 
-    print(f"\nagent={args.agent}  runs={args.runs}  namespace={NS}  experiment={experiment()}")
+    # Before the first reset: a missing backend must cost nothing.
+    via = f"  backend={generic_backend()[0]}" if args.agent == "generic" else ""
+    print(f"\nagent={args.agent}{via}  runs={args.runs}  namespace={NS}  experiment={experiment()}")
     print(f"context {ctx} {C['d']}(pinned){C['0']}   "
           f"referee sha256 {referee_fingerprint()[:16]}…\n")
 

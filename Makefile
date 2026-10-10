@@ -31,6 +31,14 @@ help: ## Show available commands
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
+# make install puts kubectl, k3d, node and claude in ~/.local/bin on Linux and
+# WSL. On PATH here too, so every target finds them before a new shell would.
+export PATH := $(HOME)/.local/bin:$(PATH)
+
+.PHONY: install
+install: ## Install the tools that are missing: macOS, Linux, WSL2. Safe to re-run. [DRY_RUN=1]
+	@bootstrap/install.sh $(if $(DRY_RUN),--dry-run)
+
 .PHONY: setup
 setup: ## Python environment, .env, then the preflight. Safe to re-run
 	@VENV=$(VENV) MAKE="$(MAKE)" bootstrap/setup.sh
@@ -120,12 +128,29 @@ quest-submit: ## Submit an answer. Usage: make quest-submit QUEST=<id> ANSWER=<a
 quest-board: ## The top ten on the scoreboard
 	@python3 quests/cli.py board
 
+## --- Harness ---
+# The agent loop the model runs inside. claude is Claude Code through
+# agents/run.py: what the labs were written for and every brief's number was
+# measured with. Anything else is a generic_agent/ backend, harness and model
+# together, e.g. pi-gemini. Set ACO_HARNESS in .env, or HARNESS= on one command.
+# Another harness is another series: its eval records are never pooled with
+# Claude Code's, and it has no APPROVE=manual and no safety net.
+HARNESS ?= $(or $(ACO_HARNESS),claude)
+
+ifeq ($(HARNESS),claude)
+AGENT_RUNNER = python3 agents/run.py
+else
+AGENT_RUNNER = python3 generic_agent/run.py --backend $(HARNESS)
+endif
+
 ## --- Evals ---
 
-AGENT ?= claude
+# make eval runs whichever harness HARNESS names; AGENT=oracle|noop still wins.
+AGENT ?= $(if $(filter claude,$(HARNESS)),claude,generic)
+eval: export GENERIC_BACKEND = $(HARNESS)
 
 .PHONY: eval
-eval: $(VENV)/.installed ## Run one scenario. Usage: make eval SCENARIO=<id> N=10 [AGENT=oracle]
+eval: $(VENV)/.installed ## Run one scenario. Usage: make eval SCENARIO=<id> N=10 [AGENT=oracle] [HARNESS=]
 	@$(PY) evals/run.py --scenario $(SCENARIO) --runs $(or $(N),10) --agent $(AGENT)
 
 .PHONY: reset
@@ -139,8 +164,8 @@ audit: ## Show the agent's tool-call audit log. [SESSION=<id>] for an APPROVE=ma
 ## --- Labs ---
 
 .PHONY: agent-check
-agent-check: ## Verify the agent reaches the model and the cluster, and both guardrail layers hold
-	@python3 agents/run.py --check
+agent-check: ## Verify the agent reaches the model and the cluster, and both guardrail layers hold. [HARNESS=]
+	@$(AGENT_RUNNER) --check
 
 MODE    ?= deploy
 APPROVE ?= auto
@@ -148,8 +173,13 @@ SAFETY_NET ?=
 
 # python3, not $(PY): the runner is stdlib-only so participants need no venv.
 .PHONY: agent
-agent: ## Run the agent. Usage: make agent MODE=deploy|harden|incident [APPROVE=manual] [SAFETY_NET=off]
-	@$(if $(SAFETY_NET),ACO_SAFETY_NET=$(SAFETY_NET) )python3 agents/run.py --mode $(MODE) --approve $(APPROVE)
+agent: ## Run the agent. Usage: make agent MODE=deploy|harden|incident [APPROVE=manual] [SAFETY_NET=off] [HARNESS=]
+ifeq ($(HARNESS),claude)
+	@$(if $(SAFETY_NET),ACO_SAFETY_NET=$(SAFETY_NET) )$(AGENT_RUNNER) --mode $(MODE) --approve $(APPROVE)
+else
+	@test "$(APPROVE)" = auto || { echo "APPROVE=manual needs HARNESS=claude: $(HARNESS) has no approval step"; exit 1; }
+	@$(AGENT_RUNNER) --mode $(MODE)
+endif
 
 # The labs replay the eval scenarios' own steps, so a lab and its measurement
 # cannot drift apart. Every one of these goes through the harness's ownership

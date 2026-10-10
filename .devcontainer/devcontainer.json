@@ -11,6 +11,7 @@
     "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "minikube": "none" },
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/python:1": { "version": "3.12" },
+    "ghcr.io/devcontainers/features/node:1": { "version": "24" },
     "ghcr.io/devcontainers-extra/features/k3d:1": {}
   },
 
@@ -26,6 +27,10 @@
   // Pre-pull on image build, not on cluster create. This is what makes the
   // bootstrap block eight minutes instead of a coffee break.
   "onCreateCommand": "docker pull nginx:1.27-alpine && docker pull busybox:1.36 || true",
+
+  // Claude Code, and anything else the features above did not cover. The same
+  // script a laptop runs, so a Codespace cannot drift from it.
+  "postCreateCommand": "bash bootstrap/install.sh",
 
   "postAttachCommand": "echo '\\nRun:  make env-up ENV=codespaces\\n'",
 
