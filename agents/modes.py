@@ -36,7 +36,10 @@ OLLAMA_MODELS = {
     # them that way, and the digest check compares names exactly.
     "aco-qwen3-1.7b-24k:latest": "2b8c8f8f3c39403347b05bb4b57754594eac01a0ec33bbdef25c25818b7811fe",  # qwen3:1.7b, num_ctx 24576, 4.4 GB resident
     "aco-llama3.2-3b-24k:latest": "eb783ab5364579bff92877f7c380e1f567ad8349736c7953700b54ce4c5f18af",  # llama3.2:3b, num_ctx 24576, 5.0 GB resident
-    "aco-qwen3-4b-24k:latest": "66426c77e6734296777c05fa4277099bea707b67b0fe71314a691aa53f69b586",  # qwen3:4b, num_ctx 24576, 6.4 GB resident
+    # Re-pinned 2026-10-10: qwen3:4b had moved (base 359d7dd4bcda), so the same
+    # Modelfile built 9fafd637. The ladder numbers were measured on 66426c77 and
+    # belong to that build; evals/ladder.py counts records by digest.
+    "aco-qwen3-4b-24k:latest": "9fafd637e2ae089d7f0f7ef1b8501296fae353576592ce62aff50a980027ab37",  # qwen3:4b, num_ctx 24576, 6.4 GB resident (as 66426c77)
     "aco-qwen3-8b-24k:latest": "12771edf4e4bd4bf3d7b91f628c06faf962edd98276ccc78f98aa2c1ae3a714e",  # qwen3:8b, num_ctx 24576, 9.1 GB resident
     "aco-llama3.2-3b-64k:latest": "65c8a8d1bf75d72ea2032ac291f3a9873029dab9c5aad5f5da5462d74e8758a4",  # llama3.2:3b, num_ctx 65536, 10.2 GB resident
     "aco-qwen3-4b-64k:latest": "55cb96e404f0fe5db5dc9d4d5e2ec42d3b30cf2ab0f4ada7ddf5e2d0a80421d3",  # qwen3:4b, num_ctx 65536, 12.9 GB resident

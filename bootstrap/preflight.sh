@@ -110,7 +110,20 @@ sys.exit(0 if any(m["name"] == sys.argv[1] and m["digest"] == sys.argv[2]
                   for m in tags.get("models", [])) else 1)' "$MODEL" "$DIGEST"; then
         ok "$MODEL, the pinned build ${DIGEST:0:12}"
       else
-        bad "$MODEL is not pulled, or not the pinned build — run: ollama pull $MODEL"
+        # The aco-* ladder models are built here from a Modelfile, not pulled.
+        TAG="${MODEL%:latest}" FIX="ollama pull $MODEL"
+        if [ -f "agents/ladder/$TAG.Modelfile" ]; then
+          FIX="ollama pull $(awk '$1 == "FROM" {print $2}' "agents/ladder/$TAG.Modelfile") && ollama create $TAG -f agents/ladder/$TAG.Modelfile"
+        fi
+        HAVE=$(curl -s -m 5 "$BASE_URL/api/tags" | python3 -c '
+import json, sys
+print(next((m["digest"] for m in json.load(sys.stdin).get("models", [])
+            if m["name"] == sys.argv[1]), ""))' "$MODEL" 2>/dev/null)
+        if [ -z "$HAVE" ]; then
+          bad "$MODEL is not on this machine — run: $FIX"
+        else
+          bad "$MODEL is build ${HAVE:0:12}, not the pinned ${DIGEST:0:12} — run: $FIX. Still different after that: its tag has moved upstream, and it is a model nobody has measured yet"
+        fi
       fi
       ;;
     anthropic)
