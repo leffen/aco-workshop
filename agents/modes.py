@@ -45,6 +45,23 @@ OLLAMA_MODELS = {
     "aco-qwen3-4b-64k:latest": "55cb96e404f0fe5db5dc9d4d5e2ec42d3b30cf2ab0f4ada7ddf5e2d0a80421d3",  # qwen3:4b, num_ctx 65536, 12.9 GB resident
 }
 
+# What each pinned model occupies once loaded, in GB: the figures above, and
+# gpt-oss:20b from its eval records (resident_gb). aco-qwen3-4b-24k is the
+# 9fafd637 build, read from ollama ps on 2026-10-11. The preflight wants this
+# much RAM plus RAM_HEADROOM_GB, or the machine swaps and agent runs time out.
+RESIDENT_GB = {
+    "gpt-oss:20b": 13.7,
+    "aco-qwen3-1.7b-24k:latest": 4.4,
+    "aco-llama3.2-3b-24k:latest": 5.0,
+    "aco-qwen3-4b-24k:latest": 6.7,
+    "aco-qwen3-8b-24k:latest": 9.1,
+    "aco-llama3.2-3b-64k:latest": 10.2,
+    "aco-qwen3-4b-64k:latest": 12.9,
+}
+# The cluster and its VM (about 1.5 GB, measured 2026-10-11), macOS and the
+# apps a participant keeps open.
+RAM_HEADROOM_GB = 6
+
 # Pinned, both of them. A moving alias or tag invalidates every recorded number.
 BACKENDS = {
     "ollama": Backend(

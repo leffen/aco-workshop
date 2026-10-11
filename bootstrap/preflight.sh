@@ -34,13 +34,15 @@ else bad ".venv is missing or incomplete — run: make setup"; fi
 
 # Read the pins from the one place they live, rather than repeating them here.
 # A bad ACO_BACKEND or ACO_OLLAMA_MODEL is reported, not a crash.
-BACKEND=none MODEL=- DIGEST=- BASE_URL=- MCP_PACKAGE=
+BACKEND=none MODEL=- DIGEST=- BASE_URL=- MCP_PACKAGE= RESIDENT_GB=- NEED_GB=-
 if PINS=$(python3 -c '
-import sys; sys.path.insert(0, ".")
-from agents.modes import MCP_PACKAGE, backend
+import math, sys; sys.path.insert(0, ".")
+from agents.modes import MCP_PACKAGE, RAM_HEADROOM_GB, RESIDENT_GB, backend
 b = backend()
-print(b.name, b.model, b.digest or "-", b.base_url or "-", MCP_PACKAGE)' 2>&1); then
-  read -r BACKEND MODEL DIGEST BASE_URL MCP_PACKAGE <<<"$PINS"
+r = RESIDENT_GB.get(b.model)
+print(b.name, b.model, b.digest or "-", b.base_url or "-", r or "-",
+      math.ceil(r + RAM_HEADROOM_GB) if r else "-", MCP_PACKAGE)' 2>&1); then
+  read -r BACKEND MODEL DIGEST BASE_URL RESIDENT_GB NEED_GB MCP_PACKAGE <<<"$PINS"
 else
   bad "the agent settings in .env: ${PINS##*$'\n'}"
 fi
@@ -128,20 +130,22 @@ print(next((m["digest"] for m in json.load(sys.stdin).get("models", [])
       # The model and the cluster share this machine's memory. On an 8 GB Mac
       # (2026-10-11) aco-qwen3-4b-24k took 6.7 GB beside an 8 GiB Colima VM: it
       # swapped, ran at 0.2 tokens/s, and every eval run timed out without a
-      # single tool call. Under 16 GB is a warning, not missing: the low-memory
-      # route (a Codespace with pi-gemini) still works.
+      # single tool call. So each model wants its own resident size plus
+      # headroom, both from agents/modes.py. Too little is a warning, not
+      # missing: the low-memory route (a Codespace with pi-gemini) still works.
+      # Rounded, not truncated: Linux reports a 16 GB machine as 15.6.
       case "$(uname -s)" in
-        Darwin) RAM_GB=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824 )) ;;
-        *)      RAM_GB=$(awk '/^MemTotal:/ {print int($2/1048576)}' /proc/meminfo 2>/dev/null || echo 0) ;;
+        Darwin) RAM_GB=$(sysctl -n hw.memsize 2>/dev/null | awk '{print int($1/1073741824 + 0.5)}') ;;
+        *)      RAM_GB=$(awk '/^MemTotal:/ {print int($2/1048576 + 0.5)}' /proc/meminfo 2>/dev/null) ;;
       esac
       VM=""
       if [ "$(uname -s)" = Darwin ] && VM_GB=$(docker info --format '{{.MemTotal}}' 2>/dev/null); then
         VM=" and Docker's VM claims $(( VM_GB / 1073741824 )) GB of it"
       fi
-      if [ "${RAM_GB:-0}" -eq 0 ]; then :
-      elif [ "$RAM_GB" -ge 16 ]; then ok "${RAM_GB} GB of RAM, enough for $MODEL beside the cluster"
+      if [ "${RAM_GB:-0}" -eq 0 ] || [ "$NEED_GB" = - ]; then :
+      elif [ "$RAM_GB" -ge "$NEED_GB" ]; then ok "${RAM_GB} GB of RAM, enough for $MODEL (${RESIDENT_GB} GB) beside the cluster"
       else
-        warn "${RAM_GB} GB of RAM${VM}: too little to run $MODEL beside the cluster. It swaps, and agent runs time out"
+        warn "${RAM_GB} GB of RAM${VM}: $MODEL takes ${RESIDENT_GB} GB and wants ${NEED_GB} GB in all. It swaps, and agent runs time out"
         note "use a Codespace instead: make env-up ENV=codespaces there, with ACO_HARNESS=pi-gemini and GEMINI_API_KEY in .env"
       fi
       ;;
