@@ -223,6 +223,9 @@ def agent_claude(scenario, prompt):
     res["model"] = res.get("model") or b.model
     res["model_digest"] = res.get("model_digest") or b.digest
     res["harness"] = "claude-code"
+    # claude-login runs the anthropic model under the participant's own login and
+    # --restricted instead of --bare: the backend says which of the two it was.
+    res["backend"] = res.get("backend") or b.name
     return res
 
 

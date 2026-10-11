@@ -149,6 +149,23 @@ print(next((m["digest"] for m in json.load(sys.stdin).get("models", [])
         note "use a Codespace instead: make env-up ENV=codespaces there, with ACO_HARNESS=pi-gemini and GEMINI_API_KEY in .env"
       fi
       ;;
+    claude-login)
+      # The participant's own claude.ai login, no API key. Only a subscription
+      # login counts: an API key in .env is kept away from claude in this mode.
+      # Asked without them too, as the agent will be, or the key answers.
+      AUTH=$(env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN -u ANTHROPIC_BASE_URL \
+             claude auth status --json 2>/dev/null | python3 -c '
+import json, sys
+try: a = json.load(sys.stdin)
+except ValueError: a = {}
+print(a.get("authMethod") or "-" if a.get("loggedIn") else "none", a.get("subscriptionType") or "-")' 2>/dev/null)
+      read -r AUTH_METHOD SUBSCRIPTION <<<"${AUTH:-none -}"
+      case "$AUTH_METHOD" in
+        claude.ai) ok "claude is logged in to claude.ai ($SUBSCRIPTION plan; backend $MODEL, no API key)" ;;
+        none)      bad "claude is not logged in — run: claude auth login (ACO_BACKEND=claude-login uses that login)" ;;
+        *)         bad "claude is logged in with $AUTH_METHOD, not a claude.ai subscription — run: claude auth login, or use ACO_BACKEND=anthropic with ANTHROPIC_API_KEY" ;;
+      esac
+      ;;
     anthropic)
       # Say what is wrong with it. Never print it.
       KEY="${ANTHROPIC_API_KEY:-}"

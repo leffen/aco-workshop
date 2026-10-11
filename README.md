@@ -28,7 +28,7 @@ cd aco-workshop
 
 make install               # the tools above; only what is missing. No make yet? bash bootstrap/install.sh
 make setup                 # Python environment, .env, then the preflight
-$EDITOR .env               # set ANTHROPIC_API_KEY
+$EDITOR .env               # set ANTHROPIC_API_KEY, or ACO_BACKEND=claude-login (below)
 make preflight             # every line must say OK or LOW; it tells you what to fix if not
 ```
 
@@ -43,6 +43,11 @@ done yet, and `make cluster-up` starts, repairs or reuses the cluster it finds. 
 doubt, run it again.
 
 `.env` is git-ignored. Never commit it, and use a key you can rotate afterwards.
+
+No API key? If you have a Claude Pro or Max plan, set `ACO_BACKEND=claude-login` in `.env`
+and log in once with `claude auth login`. The agent then runs on your own Claude Code login,
+the same model with the same tools and limits, and `make preflight` checks the login
+instead of a key. Your own CLAUDE.md, hooks, plugins and skills are kept out of it.
 
 ## On the day
 

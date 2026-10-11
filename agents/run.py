@@ -20,8 +20,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from agents import commands as cmds
 from agents import kubeconfig as kc
 from agents import safety_net as sn
-from agents.modes import (MODES, backend, backend_env, claude_command, digest_matches,
-                          mcp_config)
+from agents.modes import (MODES, backend, claude_command, claude_env, digest_matches,
+                          isolation_flag, mcp_config)
 from agents.transcript import read_jsonl, summarise
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -122,8 +122,8 @@ def session(mode):
         extra = tuple(os.environ.get("MCP_FLAGS", "").split())   # the Lab 2 flag demonstration
         mcp_path = kc.write_private(mcp_config(mode, sa_path, extra), "aco-mcp-")
         files.append(mcp_path)
-        env = {**os.environ, **backend_env(b), "KUBECONFIG": sa_path,
-               "ACO_REFEREE_KUBECONFIG": op_path, "NS": NS, "NAMESPACE": NS}
+        env = claude_env(b, os.environ, KUBECONFIG=sa_path,
+                         ACO_REFEREE_KUBECONFIG=op_path, NS=NS, NAMESPACE=NS)
         yield {"mcp": mcp_path, "env": env, "cwd": workdir, "context": op["current-context"],
                "operator": op_path}
     finally:
@@ -508,17 +508,18 @@ def check():
                      + ("" if verdict == "refused" else ": IT RAN. Do not run the labs"))
 
     b = backend()
-    cmd = ["claude", "--bare", "-p", "--model", b.model, "--output-format", "stream-json",
+    cmd = ["claude", isolation_flag(b), "-p", "--model", b.model, "--output-format", "stream-json",
            "--verbose", "--max-turns", "1", "--tools", "", "--permission-mode", "dontAsk"]
     with tempfile.TemporaryDirectory(prefix="aco-agent-") as cwd:
         p = subprocess.run(cmd, input="Reply with the single word OK.", cwd=cwd,
-                           env={**os.environ, **backend_env(b)},
+                           env=claude_env(b, os.environ),
                            capture_output=True, text=True, timeout=300)
     out = summarise(read_jsonl(p.stdout.splitlines()))
     line(not out["error"] and "OK" in out["report"],
          f"model {b.model} ({b.name}) answers" + (f" — {out['error']}" if out["error"] else ""))
     if out["error"] and "log" in out["error"].lower():
-        print("        set ANTHROPIC_API_KEY: --bare never uses your Claude Code login")
+        print("        run: claude auth login" if b.login else
+              "        set ANTHROPIC_API_KEY, or ACO_BACKEND=claude-login to use your Claude Code login")
 
     if b.name == "ollama":
         # Ollama sizes the context window to the machine, and truncates a prompt
