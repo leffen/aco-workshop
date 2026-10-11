@@ -4,6 +4,7 @@
 #   bootstrap/setup.sh          the Python environment, .env, then the preflight
 #   bootstrap/setup.sh venv     the Python environment only (make does this on demand)
 #   bootstrap/setup.sh env      .env only
+#   bootstrap/setup.sh docker   start Colima if it is the docker context and not running
 #
 # Safe to run any number of times. Each step checks before it acts:
 #   - .venv is created if missing or broken (a Homebrew Python upgrade leaves it
@@ -55,15 +56,37 @@ env_file() {
   fi
 }
 
+# Colima is the one runtime we can start without a GUI, so a stopped one is
+# started here. Anything else (Docker Desktop, OrbStack, ...) is left to the
+# preflight, which says how to start it.
+docker_up() {
+  command -v docker >/dev/null 2>&1 || return 0
+  docker info >/dev/null 2>&1 && return 0
+  local context
+  context=$(docker context show 2>/dev/null || echo default)
+  command -v colima >/dev/null 2>&1 || return 0
+  # colima stop switches the context back to default, so a dead default with
+  # Colima installed counts too.
+  case "$context" in
+    colima|default) set -- ;;
+    colima-*)       set -- "${context#colima-}" ;;
+    *)              return 0 ;;
+  esac
+  say "docker is not running (context $context); starting colima"
+  colima start "$@" || say "colima start failed; the preflight will report it"
+}
+
 case "${1:-all}" in
   venv) venv ;;
   env)  env_file ;;
+  docker) docker_up ;;
   all)
     venv
     env_file
+    docker_up
     echo
     # Through make, so .env is loaded exactly as every other target sees it.
     exec "${MAKE:-make}" --no-print-directory preflight
     ;;
-  *) fail "usage: $0 [venv|env]" ;;
+  *) fail "usage: $0 [venv|env|docker]" ;;
 esac

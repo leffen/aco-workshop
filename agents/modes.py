@@ -23,6 +23,7 @@ class Backend:
     base_url: str | None    # None: Anthropic's own API
     digest: str | None      # Ollama tags move like aliases; the digest does not
     priced: bool            # Claude Code's cost figure is invented for local models
+    login: bool = False     # the participant's own Claude Code login, not an API key
 
 
 # Every Ollama model the runner may use, pinned by digest. ACO_OLLAMA_MODEL picks
@@ -45,7 +46,24 @@ OLLAMA_MODELS = {
     "aco-qwen3-4b-64k:latest": "55cb96e404f0fe5db5dc9d4d5e2ec42d3b30cf2ab0f4ada7ddf5e2d0a80421d3",  # qwen3:4b, num_ctx 65536, 12.9 GB resident
 }
 
-# Pinned, both of them. A moving alias or tag invalidates every recorded number.
+# What each pinned model occupies once loaded, in GB: the figures above, and
+# gpt-oss:20b from its eval records (resident_gb). aco-qwen3-4b-24k is the
+# 9fafd637 build, read from ollama ps on 2026-10-11. The preflight wants this
+# much RAM plus RAM_HEADROOM_GB, or the machine swaps and agent runs time out.
+RESIDENT_GB = {
+    "gpt-oss:20b": 13.7,
+    "aco-qwen3-1.7b-24k:latest": 4.4,
+    "aco-llama3.2-3b-24k:latest": 5.0,
+    "aco-qwen3-4b-24k:latest": 6.7,
+    "aco-qwen3-8b-24k:latest": 9.1,
+    "aco-llama3.2-3b-64k:latest": 10.2,
+    "aco-qwen3-4b-64k:latest": 12.9,
+}
+# The cluster and its VM (about 1.5 GB, measured 2026-10-11), macOS and the
+# apps a participant keeps open.
+RAM_HEADROOM_GB = 6
+
+# Pinned, all of them. A moving alias or tag invalidates every recorded number.
 BACKENDS = {
     "ollama": Backend(
         name="ollama", model="gpt-oss:20b",
@@ -53,6 +71,10 @@ BACKENDS = {
         digest=OLLAMA_MODELS["gpt-oss:20b"], priced=False),
     "anthropic": Backend(name="anthropic", model="claude-sonnet-5-5", base_url=None,
                          digest=None, priced=True),
+    # The same model through the participant's claude.ai subscription: no API
+    # key. Not priced: Claude Code's figure is what an API key would have paid.
+    "claude-login": Backend(name="claude-login", model="claude-sonnet-5-5", base_url=None,
+                            digest=None, priced=False, login=True),
 }
 
 
@@ -77,6 +99,29 @@ def backend_env(b):
     if b.base_url is None:
         return {}
     return {"ANTHROPIC_BASE_URL": b.base_url, "ANTHROPIC_API_KEY": "ollama"}
+
+
+# A key or endpoint in the environment wins over the login, so for claude-login
+# none of these may reach claude: .env has ANTHROPIC_API_KEY in it by default.
+LOGIN_SHADOWS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL")
+
+
+def claude_env(b, base, **extra):
+    """The whole environment for claude: base, then the backend's, then extra."""
+    env = {**base, **backend_env(b), **extra}
+    if b.login:
+        for k in LOGIN_SHADOWS:
+            env.pop(k, None)
+    return env
+
+
+def isolation_flag(b):
+    """What keeps the participant's own CLAUDE.md, hooks, plugins, skills and MCP
+    servers out of the agent. --bare does it but reads no login, only an API key.
+    --restricted ignores the settings files and keeps both the login and the
+    --mcp-config servers. Not --safe-mode: it drops --mcp-config too, and the
+    agent ran with no Kubernetes tools (Claude Code 2.1.296, 2026-10-11)."""
+    return "--restricted" if b.login else "--bare"
 
 
 def digest_matches(tags, model, digest):
@@ -113,7 +158,8 @@ def mcp_config(mode, kubeconfig, extra_flags=()):
 
 def claude_command(mode, mcp_config, referee, max_turns, interactive=False,
                    approve_manual=False, resume=None, session_id=None):
-    cmd = ["claude", "--bare", "--model", backend().model,
+    b = backend()
+    cmd = ["claude", isolation_flag(b), "--model", b.model,
            "--strict-mcp-config", "--mcp-config", mcp_config,
            "--append-system-prompt", (PROMPTS / f"{mode}.md").read_text(),
            "--tools", "Bash",

@@ -14,6 +14,12 @@ workshop fails.
 
 You need at least 8 GB of free RAM, and these tools: Git, Docker (or Podman/Colima),
 kubectl, k3d, make, Python 3.11 or newer, Node.js 20.6 or newer and Claude Code.
+Running the model locally with Ollama takes the model's own size plus about 6 GB for the
+cluster and your apps: 13 GB of RAM for `aco-qwen3-4b-24k`, 20 GB for `gpt-oss:20b`. With
+less, it swaps until every agent run times out. `make preflight` warns when yours has less.
+On a smaller machine, use a GitHub Codespace with the `pi-gemini` harness (see below): the
+cluster and the model then both run off your laptop.
+
 `make install` installs whichever are missing, on macOS, Linux and Windows (WSL2):
 
 ```bash
@@ -22,8 +28,8 @@ cd aco-workshop
 
 make install               # the tools above; only what is missing. No make yet? bash bootstrap/install.sh
 make setup                 # Python environment, .env, then the preflight
-$EDITOR .env               # set ANTHROPIC_API_KEY
-make preflight             # every line must say OK; it tells you what to fix if not
+$EDITOR .env               # set ANTHROPIC_API_KEY, or ACO_BACKEND=claude-login (below)
+make preflight             # every line must say OK or LOW; it tells you what to fix if not
 ```
 
 `make install` prints every command before it runs it; `make install DRY_RUN=1` prints them
@@ -37,6 +43,11 @@ done yet, and `make cluster-up` starts, repairs or reuses the cluster it finds. 
 doubt, run it again.
 
 `.env` is git-ignored. Never commit it, and use a key you can rotate afterwards.
+
+No API key? If you have a Claude Pro or Max plan, set `ACO_BACKEND=claude-login` in `.env`
+and log in once with `claude auth login`. The agent then runs on your own Claude Code login,
+the same model with the same tools and limits, and `make preflight` checks the login
+instead of a key. Your own CLAUDE.md, hooks, plugins and skills are kept out of it.
 
 ## On the day
 
