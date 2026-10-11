@@ -14,10 +14,11 @@ workshop fails.
 
 You need at least 8 GB of free RAM, and these tools: Git, Docker (or Podman/Colima),
 kubectl, k3d, make, Python 3.11 or newer, Node.js 20.6 or newer and Claude Code.
-That is enough with the hosted model (`ACO_BACKEND=anthropic`). Running the model locally
-with Ollama takes 16 GB of RAM or more: the model needs about 7 GB beside the cluster, and
-on an 8 GB laptop it swaps until every agent run times out. `make preflight` warns when
-yours has less.
+Running the model locally with Ollama takes 16 GB of RAM or more: the model needs about
+7 GB beside the cluster, and on an 8 GB laptop it swaps until every agent run times out.
+`make preflight` warns when yours has less. On a smaller machine, use a GitHub Codespace
+with the `pi-gemini` harness (see below): the cluster and the model then both run off your
+laptop.
 
 `make install` installs whichever are missing, on macOS, Linux and Windows (WSL2):
 

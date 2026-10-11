@@ -128,8 +128,8 @@ print(next((m["digest"] for m in json.load(sys.stdin).get("models", [])
       # The model and the cluster share this machine's memory. On an 8 GB Mac
       # (2026-10-11) aco-qwen3-4b-24k took 6.7 GB beside an 8 GiB Colima VM: it
       # swapped, ran at 0.2 tokens/s, and every eval run timed out without a
-      # single tool call. Under 16 GB is a warning, not missing: the hosted
-      # backend still works.
+      # single tool call. Under 16 GB is a warning, not missing: the low-memory
+      # route (a Codespace with pi-gemini) still works.
       case "$(uname -s)" in
         Darwin) RAM_GB=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824 )) ;;
         *)      RAM_GB=$(awk '/^MemTotal:/ {print int($2/1048576)}' /proc/meminfo 2>/dev/null || echo 0) ;;
@@ -142,7 +142,7 @@ print(next((m["digest"] for m in json.load(sys.stdin).get("models", [])
       elif [ "$RAM_GB" -ge 16 ]; then ok "${RAM_GB} GB of RAM, enough for $MODEL beside the cluster"
       else
         warn "${RAM_GB} GB of RAM${VM}: too little to run $MODEL beside the cluster. It swaps, and agent runs time out"
-        note "use the hosted model instead: ACO_BACKEND=anthropic and ANTHROPIC_API_KEY in .env"
+        note "use a Codespace instead: make env-up ENV=codespaces there, with ACO_HARNESS=pi-gemini and GEMINI_API_KEY in .env"
       fi
       ;;
     anthropic)
