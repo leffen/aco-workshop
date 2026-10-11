@@ -14,6 +14,11 @@ workshop fails.
 
 You need at least 8 GB of free RAM, and these tools: Git, Docker (or Podman/Colima),
 kubectl, k3d, make, Python 3.11 or newer, Node.js 20.6 or newer and Claude Code.
+That is enough with the hosted model (`ACO_BACKEND=anthropic`). Running the model locally
+with Ollama takes 16 GB of RAM or more: the model needs about 7 GB beside the cluster, and
+on an 8 GB laptop it swaps until every agent run times out. `make preflight` warns when
+yours has less.
+
 `make install` installs whichever are missing, on macOS, Linux and Windows (WSL2):
 
 ```bash
@@ -23,7 +28,7 @@ cd aco-workshop
 make install               # the tools above; only what is missing. No make yet? bash bootstrap/install.sh
 make setup                 # Python environment, .env, then the preflight
 $EDITOR .env               # set ANTHROPIC_API_KEY
-make preflight             # every line must say OK; it tells you what to fix if not
+make preflight             # every line must say OK or LOW; it tells you what to fix if not
 ```
 
 `make install` prints every command before it runs it; `make install DRY_RUN=1` prints them
