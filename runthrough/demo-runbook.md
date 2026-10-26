@@ -10,7 +10,11 @@ cd ~/p/aco-workshop && git pull
 make verify            # 10 checks passed. The contract holds.
 make reset && make health     # HEALTHY — 7/7
 bootstrap/gemini-key.sh check aco-workshop-2026   # every key OK
+mkdir -p .local/audit-archive && mv agents/audit/*.jsonl .local/audit-archive/
 ```
+
+The last line clears what `/audit` shows. Without it, `/audit` in Lab 1 prints every call
+from earlier runs first: 268 lines in the dry run on 2026-10-26.
 
 Two terminals side by side, large font:
 
@@ -25,7 +29,10 @@ At `you ›`, **Ctrl-R** plus a keyword brings back each long prompt, so you nev
 front of the room: `web` (Lab 1 deploy), `shopfront` (Lab 1 fix and Lab 3), `harden`
 (Lab 2). Lines starting with `/` run as you, not the agent; the agent never sees them.
 
-## Lab 1: deploy, break, fix (about 4 min)
+## Lab 1: deploy, break, fix (about 3 min)
+
+Dry run, 2026-10-26 09:38: `make lab` 13 s, deploy 59 s, `/break` 21 s, fix 38 s,
+`/health` 7/7.
 
 ```bash
 make lab LAB=1             # resets the namespace, prints the brief
