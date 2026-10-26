@@ -353,7 +353,8 @@ def cmd_submit(client, env, out, store):
     handle = env.get("QUEST_HANDLE", "").strip() or mine.get("handle", "")
     if not handle:
         raise Failure("no handle yet: the first submission claims one. "
-                      f"make quest-submit QUEST={quest} ANSWER=<answer> HANDLE=<handle>")
+                      f"make quest-submit QUEST={quest} ANSWER=<answer> HANDLE=<nickname>\n"
+                      "Pick a nickname, not your real name: it goes on the projected board.")
 
     arguments = {"quest_id": quest, "username": handle, "answer": answer}
     if tokens.get(handle):

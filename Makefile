@@ -121,7 +121,7 @@ quest-show: ## One quest's card. Usage: make quest-show QUEST=<id>
 	@python3 quests/cli.py show
 
 .PHONY: quest-submit
-quest-submit: ## Submit an answer. Usage: make quest-submit QUEST=<id> ANSWER=<answer> [HANDLE=<handle>, first time]
+quest-submit: ## Submit an answer. Usage: make quest-submit QUEST=<id> ANSWER=<answer> [HANDLE=<nickname>, first time; it is projected, so not your real name]
 	@python3 quests/cli.py submit
 
 .PHONY: quest-board

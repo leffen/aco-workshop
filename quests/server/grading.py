@@ -30,6 +30,7 @@ import hmac
 import os
 import re
 import secrets
+import unicodedata
 from dataclasses import dataclass
 from typing import Optional
 
@@ -112,13 +113,23 @@ def check(quest_id: str, submitted: str, expected_sha256: str,
 # 255 in the source. Cut to 32 in this fork: handles go on a projector, and a
 # 255-character one breaks the board for everyone.
 HANDLE_MAX = 32
-_HANDLE_STRIP = re.compile(r"[\x00-\x1f\x7f]")
+# Removed, not replaced: Cc (control), Cf (format: bidi overrides, zero-width
+# joiners and spaces, the BOM), Co/Cs/Cn (private, surrogate, unassigned),
+# Zl/Zp (line and paragraph separators). A handle carrying any of them could
+# reorder or hide itself on the projector and pass for somebody else's.
+_HANDLE_STRIP_CATEGORIES = {"Cc", "Cf", "Co", "Cs", "Cn", "Zl", "Zp"}
 
 
 def clean_handle(raw: str) -> str:
-    """Trim, drop control characters, cap the length. Never returns None."""
-    handle = _HANDLE_STRIP.sub("", str(raw or "")).strip()
-    return handle[:HANDLE_MAX]
+    """NFKC, drop invisible and control characters, trim, cap the length.
+    Never returns None.
+
+    NFKC first, so a fullwidth or ligature spelling folds into the plain one
+    and cannot sit on the board beside it looking identical."""
+    handle = unicodedata.normalize("NFKC", str(raw or ""))
+    handle = "".join(c for c in handle
+                     if unicodedata.category(c) not in _HANDLE_STRIP_CATEGORIES)
+    return handle.strip()[:HANDLE_MAX].strip()
 
 
 def mint_claim_token() -> str:
