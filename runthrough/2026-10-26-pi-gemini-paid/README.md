@@ -83,7 +83,35 @@ Brief checklist: all ✔.
    *Done the same morning:* the `pi-gemini` backend now allows 25 turns for deploy and
    60 for harden (`max_turns` in `generic_agent/run.py`); incident stays at 20. Lab 1's
    deploy, rerun with 25: 20 turns, `web` 3/3, a full report, referee 7/7
-   (`logs/lab1-a-deploy-25turns.log`). Lab 2 has not been rerun at 60.
+   (`logs/lab1-a-deploy-25turns.log`).
+
+## Lab 2 again, at 60 turns (09:15)
+
+`logs/lab2-harden-60turns.log`. It ran out of turns again (60), in 6 min 48 s, with no
+retries, for at most **$2.34**: 61 calls, 3.0M input tokens (2.75M of them cached), 23K output.
+It never wrote a final report, but the referee showed **7/7** at the end. This time it
+started with `shopfront`:
+
+```
+shopfront  limits                     → one malformed YAML write (refused), then ok → 7/7
+shopfront  + allowPrivilegeEscalation → 7/7
+shopfront  + drop ALL capabilities    → 6/7 → rolled back → 7/7
+shopfront  + runAsNonRoot             → reverted after two writes, without the referee
+shopfront  + readOnlyRootFilesystem   → 6/7 → rolled back → 7/7
+worker     limits + readOnlyRootFilesystem + emptyDir /tmp
+… out of turns
+```
+
+It did what the prompt asks: each change that went red was rolled back, so the app
+served traffic throughout. It never found the real fix for `shopfront`, an unprivileged
+image on port 8080 with an `emptyDir` for each path nginx writes to. Instead it kept
+`shopfront` at limits plus no privilege escalation, and spent the turns that were left
+on `worker`.
+
+So 60 turns made the run longer and safer, but it still doesn't finish. On Flash, Lab 2
+is the lab where the brief's "it usually fails, and that is expected" comes true: the
+application survives, but nothing gets fully hardened. More turns would mostly add cost:
+each call carries the whole run so far, about 50K tokens per call by the end.
 3. **The prompt works as a participant would use it.** `/lab`, `/break` and `/health`
    all ran inside the same `you ›` session, and the briefs needed no changes.
 4. **RBAC did its job.** The two forbidden calls (Nodes, `pods_exec`) came back refused
