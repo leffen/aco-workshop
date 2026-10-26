@@ -1,0 +1,56 @@
+generic agent  pi + gemini-flash-latest  mode=deploy  as=agent-ns  namespace=agentic-ops
+context k3d-agentic-ops (pinned). Ctrl-C stops a goal.
+
+Type a goal in plain words, e.g. "deploy nginx with 3 replicas".
+Commands the lab needs run here too, as you: /health, /break, /audit. /help lists them. Empty line or 'exit' to stop.
+
+you ›   $ make lab1-break
+imagepullbackoff: applied break in namespace agentic-ops on k3d-agentic-ops
+
+the namespace changed, and the agent was not told.
+
+you ›   → referee {}
+  → pods_list_in_namespace {"namespace": "agentic-ops"}
+  → resources_get {"name": "shopfront", "apiVersion": "apps/v1", "kind": "Deployment", "namespace": "agentic-ops"}
+  → events_list {"namespace": "agentic-ops"}
+  ← refused or failed
+  → resources_list {"kind": "ReplicaSet", "apiVersion": "apps/v1", "namespace": "agentic-ops"}
+  → resources_create_or_update {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  labels:\n    app: shopfront\n    a
+  → pods_list_in_namespace {"namespace": "agentic-ops"}
+  → referee {}
+  → pods_list_in_namespace {"namespace": "agentic-ops"}
+
+### Root Cause Diagnosis
+The `shopfront` deployment was failing during a rollout because its container image was configured as `nginx:1.27-alpine-doesnotexist`. A new pod (`shopfront-77ddb67dd-xnxcz`) had failed to pull the non-existent image and entered `ImagePullBackOff`, stalling the deployment rollout.
+
+### Remediation
+- Updated the `shopfront` deployment manifest to point container `nginx` back to the valid image: `nginx:1.27-alpine`.
+- The erroneous ReplicaSet was scaled down and the failing pod was terminated.
+
+### Current Status
+- All pods in namespace `agentic-ops` are `Running` and `1/1 Ready`:
+  - `shopfront-76cf9678d-j5jc7` (Running, Ready 1/1)
+  - `shopfront-76cf9678d-kpbx5` (Running, Ready 1/1)
+  - `web-659659877b-6xdjn` (Running, Ready 1/1)
+  - `web-659659877b-99ppv` (Running, Ready 1/1)
+  - `web-659659877b-jn56x` (Running, Ready 1/1)
+  - `worker-96d8c57d8-65jnc` (Running, Ready 1/1)
+- The application health check (`referee`) reports healthy with all 7 checks passing, including HTTP traffic through `svc/shopfront` and deployment readiness (2/2 replicas ready).
+9 tool calls, 7 turns
+
+you ›   $ make health
+
+Health — namespace 'agentic-ops'
+
+  OK    namespace        agentic-ops exists
+  OK    deploy/shopfront 2/2 replicas ready
+  OK    deploy/worker    1/1 replicas ready
+  OK    svc/shopfront    2 endpoint(s)
+  OK    http             serves the expected page through svc/shopfront
+  OK    worker           1/1 pod(s) ticked within 90s
+  OK    restarts         max restart count 0
+
+HEALTHY — 7/7 checks passed.
+
+
+you › 

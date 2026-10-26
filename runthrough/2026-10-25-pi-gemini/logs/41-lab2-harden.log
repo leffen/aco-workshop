@@ -1,0 +1,27 @@
+generic agent  pi + gemma-4-26b-a4b-it  mode=harden  as=agent-harden  namespace=agentic-ops
+no safety net with this harness: HARNESS=claude has one
+
+[2mcontext k3d-agentic-ops (pinned). Ctrl-C stops.[0m
+  [36m→ resources_list[0m {"namespace": "agentic-ops", "apiVersion": "apps/v1", "kind": "Deployment"}
+  [36m→ resources_get[0m {"name": "shopfront", "apiVersion": "apps/v1", "kind": "Deployment", "namespace": "agentic-ops"}
+  [36m→ referee[0m {}
+  [36m→ resources_create_or_update[0m {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  labels:\n    app: shopfront\n    a
+  [36m→ referee[0m {}
+  [31m← refused or failed[0m
+  [36m→ referee[0m {}
+  [31m← refused or failed[0m
+  [36m→ pods_list_in_namespace[0m {"namespace": "agentic-ops"}
+  [36m→ pods_log[0m {"namespace": "agentic-ops", "name": "shopfront-577fc55c76-m2wr7"}
+  [36m→ resources_create_or_update[0m {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  labels:\n    app: shopfront\n    a
+  [36m→ referee[0m {}
+  [36m→ resources_create_or_update[0m {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  labels:\n    app: shopfront\n    a
+  [31m← refused or failed[0m
+  [36m→ resources_list[0m {"kind": "Service", "apiVersion": "v1", "namespace": "agentic-ops"}
+  [36m→ resources_create_or_update[0m {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  labels:\n    app: shopfront\n    a
+  [31m← refused or failed[0m
+  [36m→ resources_get[0m {"namespace": "agentic-ops", "kind": "Deployment", "name": "shopfront", "apiVersion": "apps/v1"}
+  [36m→ resources_create_or_update[0m {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  labels:\n    app: shopfront\n    a
+
+
+[2m15 tool calls, 42 turns[0m
+[31m{"error":{"message":"{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 16000, model: gemma-4-26b, description: Generate content input tokens per minute limit exceeded on Free Tier. See https://ai.google.dev/gemini-api/docs/rate-limits.\\nPlease retry in 30.835583439s.\",\n    \"status\": \"RESOURCE_EXHAUSTED\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.Help\",\n        \"links\": [\n          {\n            \"description\": \"Learn more about Gemini API quotas\",\n            \"url\": \"https://ai.google.dev/gemini-api/docs/rate-limits\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.QuotaFailure\",\n        \"violations\": [\n          {\n            \"description\": \"Generate content input tokens per minute limit exceeded on Free Tier. See https://ai.google.dev/gemini-api/docs/rate-limits.\",\n            \"quotaMetric\": \"generativelanguage.googleapis.com/generate_content_free_tier_input_token_count\",\n            \"quotaId\": \"GenerateContentInputTokensPerModelPerMinute-FreeTier\",\n            \"quotaDimensions\": {\n              \"model\": \"gemma-4-26b\",\n              \"location\": \"global\"\n            },\n            \"quotaValue\": \"16000\"\n          }\n        ]\n      },\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.RetryInfo\",\n        \"retryDelay\": \"30s\"\n      }\n    ]\n  }\n}\n","code":429,"status":"Too Many Requests"}}[0m

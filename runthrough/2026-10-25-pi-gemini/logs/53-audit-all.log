@@ -1,0 +1,52 @@
+time      tool                            arguments                                                     result
+19:41:10  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+19:41:10  referee                         {}                                                            ok
+19:51:03  resources_list                  {"apiVersion": "apps/v1", "kind": "Deployment", "namespace":  ok
+--- lab 1 · easy ---
+--- lab 1 · easy ---
+19:57:58  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+19:57:58  resources_create_or_update      {"resource": "apiVersion: v1\nkind: Service\nmetadata:\n  na  ok
+20:00:14  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:00:14  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":6,"failed":1,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+20:00:14  resources_get                   {"name": "shopfront", "kind": "Deployment", "namespace": "ag  ok
+20:05:44  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:05:44  resources_get                   {"apiVersion": "apps/v1", "kind": "Deployment", "namespace":  ok
+20:10:40  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:10:40  resources_list                  {"kind": "Deployment", "apiVersion": "apps/v1", "namespace":  ok
+20:10:40  resources_get                   {"kind": "Deployment", "namespace": "agentic-ops", "apiVersi  ok
+20:10:40  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+20:10:40  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:10:40  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:10:40  resources_get                   {"name": "shopfront", "kind": "Deployment", "apiVersion": "a  ok
+--- lab 2 · easy ---
+20:36:33  resources_list                  {"namespace": "agentic-ops", "apiVersion": "apps/v1", "kind"  ok
+20:36:33  resources_get                   {"name": "shopfront", "apiVersion": "apps/v1", "kind": "Depl  ok
+20:36:33  referee                         {}                                                            ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+20:36:33  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":6,"failed":1,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+20:36:33  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":5,"failed":2,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+20:36:33  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:36:33  pods_log                        {"namespace": "agentic-ops", "name": "shopfront-577fc55c76-m  ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+20:36:33  referee                         {}                                                            ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  REFUSED
+          failed to create or update resources: Deployment.apps "shopfront" is invalid: spec.template.spec.containers[0].ports[1].name: Duplicate value: "http"
+20:36:33  resources_list                  {"kind": "Service", "apiVersion": "v1", "namespace": "agenti  ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  REFUSED
+          failed to create or update resources: Deployment.apps "shopfront" is invalid: spec.template.spec.containers[0].ports[1].name: Duplicate value: "http"
+20:36:33  resources_get                   {"namespace": "agentic-ops", "kind": "Deployment", "name": "  ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+--- lab 3 · easy ---
+20:42:19  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:42:19  resources_list                  {"namespace": "agentic-ops", "kind": "Deployment", "apiVersi  ok
+20:42:19  resources_get                   {"name": "shopfront", "apiVersion": "apps/v1", "namespace":   ok
+20:42:19  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":6,"failed":1,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+20:42:19  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+20:42:19  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:42:19  referee                         {}                                                            ok
+
+39 calls, 6 refused

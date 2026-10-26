@@ -1,0 +1,42 @@
+==> cluster 'agentic-ops' exists; starting it if it is stopped
+==> importing nginx:1.27-alpine into the cluster
+==> importing busybox:1.36 into the cluster
+==> importing nginxinc/nginx-unprivileged:1.27-alpine into the cluster
+==> context: k3d-agentic-ops
+==> waiting for the nodes to be Ready
+namespace/agentic-ops unchanged
+serviceaccount/agent-admin unchanged
+serviceaccount/agent-harden unchanged
+serviceaccount/agent-ns unchanged
+serviceaccount/agent-ro unchanged
+role.rbac.authorization.k8s.io/agent-admin unchanged
+role.rbac.authorization.k8s.io/agent-harden unchanged
+role.rbac.authorization.k8s.io/agent-ns unchanged
+role.rbac.authorization.k8s.io/agent-ro unchanged
+rolebinding.rbac.authorization.k8s.io/agent-harden unchanged
+rolebinding.rbac.authorization.k8s.io/agent-ns unchanged
+rolebinding.rbac.authorization.k8s.io/agent-ro unchanged
+service/shopfront unchanged
+deployment.apps/shopfront unchanged
+deployment.apps/worker unchanged
+==> waiting for the workload to settle
+deployment "shopfront" successfully rolled out
+deployment "worker" successfully rolled out
+
+Environment contract — namespace 'agentic-ops'
+
+  [32mOK[0m    context reachable: k3d-agentic-ops
+  [32mOK[0m    namespace 'agentic-ops' exists and is labelled as ours
+  [32mOK[0m    service account agent-ro
+  [32mOK[0m    service account agent-ns
+  [32mOK[0m    service account agent-harden
+  [32mOK[0m    agent-harden CAN patch deployments
+  [32mOK[0m    agent-harden CANNOT delete deployments (the delete verb is absent)
+  [32mOK[0m    no agent service account has cluster-scoped access
+  [32mOK[0m    deployment shopfront has 2 ready replica(s)
+  [32mOK[0m    deployment worker has 1 ready replica(s)
+        
+        cluster-scoped chaos scenarios available (dns-mess, node-pressure)
+
+[32m10 checks passed. The contract holds.[0m
+

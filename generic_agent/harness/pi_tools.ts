@@ -155,6 +155,14 @@ export default async function acoTools(pi: ExtensionAPI) {
 			ctx.abort();
 		}
 	});
+	// A turn the API failed (a 429 or 503 pi is about to retry) did no work:
+	// give it back, or a throttled run hits the limit on retries alone
+	// (2026-10-25: 16 "turns" were 8 calls and 8 retries). pi's own retry
+	// limit still ends a run that only ever fails.
+	pi.on("turn_end", async (event) => {
+		const m = event.message as { role?: string; stopReason?: string };
+		if (m?.role === "assistant" && m.stopReason === "error") turns -= 1;
+	});
 
 	pi.on("session_shutdown", async () => {
 		for (const c of clients) c.close();

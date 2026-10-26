@@ -1,0 +1,143 @@
+time      tool                            arguments                                                     result
+19:41:10  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+19:41:10  referee                         {}                                                            ok
+19:51:03  resources_list                  {"apiVersion": "apps/v1", "kind": "Deployment", "namespace":  ok
+--- lab 1 · easy ---
+--- lab 1 · easy ---
+19:57:58  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+19:57:58  resources_create_or_update      {"resource": "apiVersion: v1\nkind: Service\nmetadata:\n  na  ok
+20:00:14  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:00:14  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":6,"failed":1,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+20:00:14  resources_get                   {"name": "shopfront", "kind": "Deployment", "namespace": "ag  ok
+20:05:44  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:05:44  resources_get                   {"apiVersion": "apps/v1", "kind": "Deployment", "namespace":  ok
+20:10:40  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:10:40  resources_list                  {"kind": "Deployment", "apiVersion": "apps/v1", "namespace":  ok
+20:10:40  resources_get                   {"kind": "Deployment", "namespace": "agentic-ops", "apiVersi  ok
+20:10:40  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+20:10:40  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:10:40  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:10:40  resources_get                   {"name": "shopfront", "kind": "Deployment", "apiVersion": "a  ok
+--- lab 2 · easy ---
+20:36:33  resources_list                  {"namespace": "agentic-ops", "apiVersion": "apps/v1", "kind"  ok
+20:36:33  resources_get                   {"name": "shopfront", "apiVersion": "apps/v1", "kind": "Depl  ok
+20:36:33  referee                         {}                                                            ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+20:36:33  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":6,"failed":1,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+20:36:33  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":5,"failed":2,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+20:36:33  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:36:33  pods_log                        {"namespace": "agentic-ops", "name": "shopfront-577fc55c76-m  ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+20:36:33  referee                         {}                                                            ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  REFUSED
+          failed to create or update resources: Deployment.apps "shopfront" is invalid: spec.template.spec.containers[0].ports[1].name: Duplicate value: "http"
+20:36:33  resources_list                  {"kind": "Service", "apiVersion": "v1", "namespace": "agenti  ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  REFUSED
+          failed to create or update resources: Deployment.apps "shopfront" is invalid: spec.template.spec.containers[0].ports[1].name: Duplicate value: "http"
+20:36:33  resources_get                   {"namespace": "agentic-ops", "kind": "Deployment", "name": "  ok
+20:36:33  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+--- lab 3 · easy ---
+20:42:19  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:42:19  resources_list                  {"namespace": "agentic-ops", "kind": "Deployment", "apiVersi  ok
+20:42:19  resources_get                   {"name": "shopfront", "apiVersion": "apps/v1", "namespace":   ok
+20:42:19  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":6,"failed":1,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+20:42:19  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+20:42:19  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+20:42:19  referee                         {}                                                            ok
+--- lab 3 · easy ---
+04:46:18  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+04:46:18  resources_list                  {"kind": "Deployment", "apiVersion": "apps/v1", "namespace":  ok
+04:46:18  resources_get                   {"kind": "Deployment", "apiVersion": "apps/v1", "name": "sho  ok
+04:46:18  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+04:46:18  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+04:46:18  resources_get                   {"apiVersion": "apps/v1", "namespace": "agentic-ops", "kind"  ok
+04:46:18  referee                         {}                                                            ok
+--- lab 1 · easy ---
+05:51:03  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:51:03  referee                         {}                                                            ok
+05:51:03  resources_list                  {"apiVersion": "apps/v1", "namespace": "agentic-ops", "kind"  ok
+05:51:03  resources_list                  {"kind": "Service", "namespace": "agentic-ops", "apiVersion"  ok
+05:51:03  resources_get                   {"apiVersion": "apps/v1", "namespace": "agentic-ops", "kind"  ok
+05:51:03  events_list                     {"namespace": "agentic-ops"}                                  ok
+05:51:03  resources_list                  {"apiVersion": "v1", "kind": "Node"}                          REFUSED
+          failed to list resources: nodes is forbidden: User "system:serviceaccount:agentic-ops:agent-ns" cannot list resource "nodes" in API group "" at the cluster sco…
+05:51:03  resources_get                   {"apiVersion": "v1", "namespace": "agentic-ops", "name": "sh  ok
+05:51:03  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:51:03  resources_get                   {"apiVersion": "apps/v1", "name": "worker", "namespace": "ag  ok
+05:51:03  pods_exec                       {"namespace": "agentic-ops", "command": ["ping", "-c", "1",   REFUSED
+          failed to exec in pod worker-96d8c57d8-65jnc in namespace agentic-ops: unable to upgrade connection: pods "worker-96d8c57d8-65jnc" is forbidden: User "system:s…
+05:51:03  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+05:51:03  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:51:03  resources_create_or_update      {"resource": "apiVersion: v1\nkind: Service\nmetadata:\n  na  ok
+05:51:03  resources_get                   {"name": "web", "namespace": "agentic-ops", "kind": "Endpoin  REFUSED
+          failed to get resource: endpoints "web" is forbidden: User "system:serviceaccount:agentic-ops:agent-ns" cannot get resource "endpoints" in API group "" in the …
+--- you ran make lab1-break ---
+05:52:37  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":6,"failed":1,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+05:52:37  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:52:37  resources_get                   {"name": "shopfront", "apiVersion": "apps/v1", "kind": "Depl  ok
+05:52:37  events_list                     {"namespace": "agentic-ops"}                                  ok
+05:52:37  resources_list                  {"kind": "ReplicaSet", "apiVersion": "apps/v1", "namespace":  ok
+05:52:37  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+05:52:37  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:52:37  referee                         {}                                                            ok
+05:52:37  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+--- lab 2 · easy ---
+05:58:36  referee                         {}                                                            ok
+05:58:36  resources_list                  {"namespace": "agentic-ops", "kind": "Deployment", "apiVersi  ok
+05:58:36  resources_get                   {"namespace": "agentic-ops", "apiVersion": "apps/v1", "name"  ok
+05:58:36  resources_get                   {"namespace": "agentic-ops", "kind": "Deployment", "name": "  ok
+05:58:36  resources_get                   {"namespace": "agentic-ops", "kind": "Service", "apiVersion"  ok
+05:58:36  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:58:36  pods_exec                       {"namespace": "agentic-ops", "name": "shopfront-76cf9678d-cx  REFUSED
+          failed to exec in pod shopfront-76cf9678d-cxltg in namespace agentic-ops: unable to upgrade connection: pods "shopfront-76cf9678d-cxltg" is forbidden: User "sy…
+05:58:36  pods_log                        {"name": "worker-96d8c57d8-dt9tq", "namespace": "agentic-ops  ok
+05:58:36  pods_top                        {"namespace": "agentic-ops"}                                  REFUSED
+          failed to get pods top: failed to list pod metrics in namespace agentic-ops: pods.metrics.k8s.io is forbidden: User "system:serviceaccount:agentic-ops:agent-ha…
+05:58:36  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  pods_log                        {"name": "worker-66454c4c8f-kqx79", "namespace": "agentic-op  ok
+05:58:36  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:58:36  pods_log                        {"name": "worker-84fbdf5b6d-nwbfd", "namespace": "agentic-op  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  resources_get                   {"apiVersion": "apps/v1", "name": "shopfront", "kind": "Depl  ok
+05:58:36  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:58:36  referee                         {}                                                            ok
+05:58:36  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+05:58:36  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":6,"failed":1,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+05:58:36  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+05:58:36  referee                         {}                                                            ok
+--- lab 3 · easy ---
+06:00:37  referee                         {}                                                            REFUSED
+          {"healthy":false,"passed":6,"failed":1,"total":7,"namespace":"agentic-ops","checks":[{"check":"namespace","status":"pass","detail":"agentic-ops exists"},{"chec…
+06:00:37  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+06:00:37  events_list                     {"namespace": "agentic-ops"}                                  ok
+06:00:37  resources_get                   {"name": "shopfront", "namespace": "agentic-ops", "apiVersio  ok
+06:00:37  resources_create_or_update      {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadat  ok
+06:00:37  pods_list_in_namespace          {"namespace": "agentic-ops"}                                  ok
+06:00:37  referee                         {}                                                            ok
+
+117 calls, 14 refused

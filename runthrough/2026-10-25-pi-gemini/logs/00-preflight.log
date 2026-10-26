@@ -1,0 +1,24 @@
+
+Tools
+  [32mOK[0m       git
+  [32mOK[0m       docker
+  [32mOK[0m       kubectl
+  [32mOK[0m       k3d
+  [32mOK[0m       python3
+  [32mOK[0m       npx
+  [32mOK[0m       Python 3.14.5
+  [32mOK[0m       .venv
+
+Images (pulled now, so the cluster does not fetch them in the room)
+  [32mOK[0m       nginx:1.27-alpine (already pulled)
+  [32mOK[0m       busybox:1.36 (already pulled)
+  [32mOK[0m       nginxinc/nginx-unprivileged:1.27-alpine (already pulled)
+  [32mOK[0m       Docker has 71 GB of disk free
+
+Agent
+  [32mOK[0m       kubernetes-mcp-server@0.0.67 (cached)
+  [32mOK[0m       GEMINI_API_KEY is set (harness pi-gemini)
+  [32mOK[0m       @mariozechner/pi-coding-agent@0.73.1 (cached)
+
+[32mReady. Next: make cluster-up[0m
+

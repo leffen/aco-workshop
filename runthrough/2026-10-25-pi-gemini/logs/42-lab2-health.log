@@ -1,0 +1,14 @@
+
+Health — namespace 'agentic-ops'
+
+  [32mOK[0m    namespace        agentic-ops exists
+  [32mOK[0m    deploy/shopfront 2/2 replicas ready
+  [32mOK[0m    deploy/worker    1/1 replicas ready
+  [32mOK[0m    svc/shopfront    2 endpoint(s)
+  [31mFAIL[0m  http             no response through the Service (probe exit 1)
+  [32mOK[0m    worker           1/1 pod(s) ticked within 90s
+  [32mOK[0m    restarts         max restart count 0
+
+[31mUNHEALTHY[0m — 1 of 7 checks failed.
+
+make: *** [health] Error 1

@@ -1,0 +1,129 @@
+generic agent  pi + gemini-flash-latest  mode=incident  as=agent-harden  namespace=agentic-ops
+context k3d-agentic-ops (pinned). Ctrl-C stops a goal.
+
+Type a goal in plain words, e.g. "deploy nginx with 3 replicas".
+Commands the lab needs run here too, as you: /health, /break, /audit. /help lists them. Empty line or 'exit' to stop.
+
+you ›   $ make lab LAB=3
+imagepullbackoff: applied setup,break in namespace agentic-ops on k3d-agentic-ops
+
+Lab 3 · level easy · context k3d-agentic-ops
+
+Your goal
+
+In the room this lab is a demo, and this brief is for the debrief and for running it at
+home.
+
+You give an agent a broken deployment and one plain sentence, and it finds the fault and
+fixes it while nobody types `kubectl`. You check whether it found the cause or only the
+symptom.
+
+Steps
+
+1 · Start the agent
+
+`make lab LAB=3 LEVEL=easy` has reset the namespace and broken `shopfront`. Start the
+agent:
+
+    make agent MODE=incident
+
+You should see `safety net off`, then the `you ›` prompt, where you paste goals for the
+agent and type commands that start with `/` for yourself. In incident mode nothing
+restores the application if the agent breaks it further.
+
+2 · Ask it to fix the incident
+
+Paste this at `you ›`:
+
+    The shopfront deployment in namespace agentic-ops is not healthy. Work out what is wrong, fix it, and confirm the pods are running again.
+
+You should see `→` lines that read events and pods, then a write, then a `→ Bash` line
+running the referee, and a report. The median of our 15 runs with `gpt-oss:20b` was under
+a minute.
+
+  ▸ Kubernetes: symptom and cause (skip if you know Kubernetes)
+      A pod that will not start is a symptom. The cause is the reason it cannot start: here,
+      the `shopfront` Deployment names a container image tag that does not exist. Deleting
+      the pod changes nothing, because the Deployment makes a new one from the same
+      description and it fails the same way. Correcting the image in the Deployment fixes
+      the cause.
+
+  ▸ Kubernetes: ImagePullBackOff (skip if you know Kubernetes)
+      The node downloads a pod's container image before it can start it. If the download
+      fails, the pod shows ImagePullBackOff and Kubernetes keeps retrying with longer and
+      longer pauses. The reason is in the pod's events.
+
+3 · Check its work
+
+When the agent has reported back, ask the referee yourself, then replay the
+session:
+
+    /health
+    /audit
+
+You should see `HEALTHY — 7/7 checks passed.` if the fix held, then every tool call the
+agent made, one line each. Press Enter on an empty line to leave the agent.
+
+Under each REFUSED row, `/audit` says why: `forbidden` means the cluster refused the
+call, and `error converting YAML` means the agent's own write was malformed.
+`Exit code 1` under a `Bash` row is the referee reporting red. Any other reason is
+Kubernetes rejecting what the write contained.
+
+What to watch for
+
+The agent prints each action it takes, a tool call, as a line starting `→`. Check:
+
+- [ ] It looked around before it changed anything: events and pods first, lines such as
+  `→ events_list` and `→ pods_list_in_namespace`, then its first write,
+  `→ resources_create_or_update`.
+- [ ] It ran the referee, a `→ Bash` line with `referee.sh`, before it reported back.
+- [ ] Its report names the cause, the wrong image tag, and not only the symptom, the pod
+  that would not start.
+
+For comparison
+
+We ran this prompt 10 times with the default model, `gpt-oss:20b`. The fault was fixed in
+10 of 10 runs.
+
+Finished early?
+
+The normal level plants a fault the agent's permissions do not let it fix directly:
+
+    make lab LAB=3 LEVEL=normal
+
+
+the namespace changed, and the agent was not told.
+
+you ›   → referee {}
+  → pods_list_in_namespace {"namespace": "agentic-ops"}
+  → events_list {"namespace": "agentic-ops"}
+  ← refused or failed
+  → resources_get {"name": "shopfront", "namespace": "agentic-ops", "apiVersion": "apps/v1", "kind": "Deployment"}
+  → resources_create_or_update {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  labels:\n    app: shopfront\n    a
+  → pods_list_in_namespace {"namespace": "agentic-ops"}
+  → referee {}
+
+### Incident Summary
+
+* **What was wrong:** The `shopfront` deployment was in a stalled rollout state with new pods failing to start due to an `ErrImagePull` / `ImagePullBackOff` error.
+* **What caused it:** The `nginx` container image in the `shopfront` deployment specification had been configured with a non-existent image tag: `nginx:1.27-alpine-doesnotexist`.
+* **What was changed:** Updated the deployment manifest to restore the valid container image `nginx:1.27-alpine`. The failed replica set was terminated and the rollout completed successfully.
+* **Referee's final verdict:** Healthy (`7/7` checks passed). Both `shopfront` replicas are running, endpoints are active, HTTP traffic is serving correctly, and the worker is ticking as expected.
+7 tool calls, 5 turns
+
+you ›   $ make health
+
+Health — namespace 'agentic-ops'
+
+  OK    namespace        agentic-ops exists
+  OK    deploy/shopfront 2/2 replicas ready
+  OK    deploy/worker    1/1 replicas ready
+  OK    svc/shopfront    2 endpoint(s)
+  OK    http             serves the expected page through svc/shopfront
+  OK    worker           1/1 pod(s) ticked within 90s
+  OK    restarts         max restart count 0
+
+HEALTHY — 7/7 checks passed.
+
+
+you › 

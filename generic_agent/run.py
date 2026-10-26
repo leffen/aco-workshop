@@ -24,9 +24,9 @@ from datetime import datetime, timezone
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from agents import kubeconfig as kc, safety_net
+from agents import commands as cmds, kubeconfig as kc, safety_net
 from agents.modes import MCP_PACKAGE, MODES, PROMPTS
-from agents.run import AUDIT, NS, assert_owned, redact
+from agents.run import AUDIT, NS, assert_owned, history, redact
 
 PI_PACKAGE = "@mariozechner/pi-coding-agent@0.73.1"   # pinned, like the MCP server
 PI_TOOLS = ROOT / "generic_agent" / "harness" / "pi_tools.ts"
@@ -45,6 +45,16 @@ class Backend:
     digest: str | None      # None for a hosted model: nothing to pin but the name
     base_url: str = ""      # set when the harness must be told about the model
     priced: bool = True     # False: the harness doesn't know the price, so no cost
+    # pi's retry on a 429/5xx: (retries, first delay in ms), doubling each time.
+    # pi's own default, 3 from 2 s, gives up in 14 s: too soon for a per-minute
+    # quota, which asks for 30-60 s (2026-10-25).
+    retry: tuple = (5, 20_000)
+    # (mode, turns) where this backend needs more than agents/modes.py, which
+    # was set for Claude Code. MAX_TURNS in the environment still wins.
+    max_turns: tuple = ()
+
+    def turns(self, mode):
+        return dict(self.max_turns).get(mode, MODES[mode].max_turns)
 
 
 # A hosted model has no digest, so the name must be one that does not move:
@@ -52,11 +62,18 @@ class Backend:
 # 0.73.1 lists, is "no longer available to new users" (2026-10-09), so the
 # model is declared to pi through models.json, and pi can't price it.
 BACKENDS = {
-    "pi-gemini": Backend(harness="pi", provider="google", model="gemini-3.8-flash",
+    # ACO_GEMINI_MODEL overrides the pin for a one-off run (e.g. gemini-flash-latest);
+    # the record then names the alias, not the model it resolved to.
+    "pi-gemini": Backend(harness="pi", provider="google",
+                         model=os.environ.get("ACO_GEMINI_MODEL") or "gemini-3.8-flash",
                          wire="google-generative-ai", server="gemini-api",
                          key_env="GEMINI_API_KEY", digest=None,
                          base_url="https://generativelanguage.googleapis.com/v1beta",
-                         priced=False),
+                         priced=False,
+                         # Flash explores before it acts: on 2026-10-26 the Lab 1
+                         # deploy ran out at 15 with web up but no report, and
+                         # Lab 2 at 40 after 7 changes, before shopfront's port.
+                         max_turns=(("deploy", 25), ("harden", 60))),
 }
 
 
@@ -158,6 +175,13 @@ def pi_models(b):
                     "contextWindow": 1048576, "reasoning": True}]}}}
 
 
+def pi_settings(b):
+    """settings.json for pi: the backend's retry, so a throttled API is waited
+    out instead of ending the run."""
+    retries, base_ms = b.retry
+    return {"retry": {"enabled": True, "maxRetries": retries, "baseDelayMs": base_ms}}
+
+
 def pi_env(b, s, max_turns, key):
     env = {k: v for k, v in os.environ.items() if k not in ("KUBECONFIG", "ACO_KEY_FILE")}
     return {**env,
@@ -225,6 +249,8 @@ def summarise_pi(events):
                 report = text
             # Only the last answer's outcome counts: pi retries a 503 by itself,
             # and a run that recovered must not be recorded as failed.
+            # A turn the API failed did no work, as pi_tools.ts counts it.
+            turns -= m.get("stopReason") == "error"
             error = (m.get("errorMessage") or m.get("stopReason")
                      if m.get("stopReason") in ("error", "aborted") else None)
     return {"report": report, "iterations": turns, "tool_calls": calls,
@@ -257,11 +283,12 @@ def render(events):
 def turn(b, mode, s, prompt, max_turns, key, events_to=None, live=False):
     cmd = pi_command(b, mode, prompt)
     env = pi_env(b, s, max_turns, key)
+    home = pathlib.Path(env["PI_CODING_AGENT_DIR"])
+    home.mkdir(parents=True, exist_ok=True)
     models = pi_models(b)
     if models:
-        home = pathlib.Path(env["PI_CODING_AGENT_DIR"])
-        home.mkdir(parents=True, exist_ok=True)
         (home / "models.json").write_text(json.dumps(models))
+    (home / "settings.json").write_text(json.dumps(pi_settings(b)))
     # stderr to a file, not a pipe: a chatty stderr would fill the pipe buffer
     # and hang the run while we only read stdout.
     with tempfile.TemporaryFile(mode="w+") as err:
@@ -381,7 +408,7 @@ def main():
         return check(b, key)
     if not a.mode:
         ap.error("--mode is required")
-    turns = int(os.environ.get("MAX_TURNS", MODES[a.mode].max_turns))
+    turns = int(os.environ.get("MAX_TURNS", b.turns(a.mode)))
     if a.json:
         with session(a.mode) as s:
             out = turn(b, a.mode, s, sys.stdin.read(), turns, key, events_to=a.events)
@@ -391,32 +418,81 @@ def main():
 
 
 def live(b, mode, turns, key, prompt, events_to=None):
-    """One goal, shown as it happens: make agent HARNESS=<backend>. Not the labs' REPL:
-    pi runs with --no-session, so there is no conversation to continue."""
+    """make agent HARNESS=<backend>: the labs' `you ›` prompt, with the same
+    slash commands as agents/run.py, so a brief reads the same on either
+    harness. With ACO_PROMPT set, that one goal and out, for scripts.
+    pi runs with --no-session, so every goal starts a new conversation."""
     print(f"generic agent  {b.harness} + {b.model}  mode={mode}  as={MODES[mode].sa}  "
           f"namespace={NS}")
     if safety_net.enabled(mode):
-        print("no safety net with this harness: HARNESS=claude has one\n")
-    if not prompt:
-        try:
-            prompt = input("you › ").strip()
-        except EOFError:
-            prompt = ""
-    if not prompt:
-        return 0
+        print("no safety net with this harness: HARNESS=claude has one")
     with session(mode) as s:
-        print(f"\033[2mcontext {s['context']} (pinned). Ctrl-C stops.\033[0m", flush=True)
-        try:
-            out = turn(b, mode, s, prompt, turns, key, events_to=events_to, live=True)
-        except KeyboardInterrupt:
-            print("\n\033[33mstopped.\033[0m")
-            return 130
+        print(f"\033[2mcontext {s['context']} (pinned). Ctrl-C stops a goal.\033[0m\n", flush=True)
+        if prompt:
+            return goal(b, mode, s, prompt, turns, key, events_to)
+        print("\033[2mType a goal in plain words, e.g. \"deploy nginx with 3 replicas\".\n"
+              "Commands the lab needs run here too, as you: /health, /break, /audit. "
+              "/help lists them. Empty line or 'exit' to stop.\033[0m\n")
+        remember = history()
+        while True:
+            try:
+                line = input("you › ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                return 0
+            if line in ("", "exit", "quit", "/exit"):
+                return 0
+            remember(line)
+            if line.startswith("/"):
+                slash(mode, s, line)
+            else:
+                goal(b, mode, s, line, turns, key, events_to)
+
+
+def goal(b, mode, s, prompt, turns, key, events_to=None):
+    """One goal, shown as it happens. -> exit status."""
+    try:
+        out = turn(b, mode, s, prompt, turns, key, events_to=events_to, live=True)
+    except KeyboardInterrupt:
+        print("\n\033[33mstopped.\033[0m\n")
+        return 130
     cost = "" if out["cost_usd"] is None else f"  ${out['cost_usd']:.3f}"
     print(f"\n{out['report']}\n\033[2m{len(out['tool_calls'])} tool calls, "
-          f"{out['iterations']} turns{cost}\033[0m")
+          f"{out['iterations']} turns{cost}\033[0m\n")
     if out["error"]:
-        print(f"\033[31m{out['error']}\033[0m")
+        print(f"\033[31m{out['error']}\033[0m\n")
     return 0 if not out["error"] else 1
+
+
+def slash(mode, s, line):
+    """A slash command, run as you between goals: agents/run.py's slash()
+    without the safety net and the conversation, which this harness lacks."""
+    try:
+        name, argv = cmds.plan(line)
+    except ValueError as e:
+        print(f"\033[31m{e}\033[0m\n")
+        return
+    if name == "help":
+        print(cmds.help_text())
+        return
+    if name == "new":
+        print("\033[2mevery goal already starts a new conversation with this harness.\033[0m\n")
+        return
+    c = cmds.COMMANDS[name]
+    print(f"\033[2m  $ {' '.join(a for a in argv if a != '--no-print-directory')}\033[0m", flush=True)
+    status = cmds.run(argv, cmds.environment(s["operator"], NS))
+    print()
+    if status == 130:
+        print("\033[33mstopped.\033[0m\n")
+    if not c.changes:
+        return
+    if c.divider:
+        cmds.record(argv, status)
+    lab = next((a.removeprefix("LAB=") for a in argv if a.startswith("LAB=")), None)
+    if name == "lab" and cmds.LAB_MODE.get(lab, mode) != mode:
+        print(f"\033[33mLab {lab} runs in mode {cmds.LAB_MODE[lab]}, and this agent is in "
+              f"{mode}. Press Enter to leave, then: make agent MODE={cmds.LAB_MODE[lab]}\033[0m")
+    print("\033[2mthe namespace changed, and the agent was not told.\033[0m\n")
 
 
 if __name__ == "__main__":

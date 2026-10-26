@@ -1,0 +1,8 @@
+generic agent  pi + gemma-4-31b-it  mode=deploy  as=agent-ns  namespace=agentic-ops
+[2mcontext k3d-agentic-ops (pinned). Ctrl-C stops.[0m
+  [36m→ pods_list_in_namespace[0m {"namespace": "agentic-ops"}
+  [36m→ resources_get[0m {"apiVersion": "apps/v1", "kind": "Deployment", "namespace": "agentic-ops", "name": "shopfront"}
+
+
+[2m2 tool calls, 5 turns[0m
+[31mIncomplete JSON segment at the end[0m

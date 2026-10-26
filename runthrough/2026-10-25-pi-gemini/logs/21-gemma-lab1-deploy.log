@@ -1,0 +1,9 @@
+generic agent  pi + gemma-4-31b-it  mode=deploy  as=agent-ns  namespace=agentic-ops
+[2mcontext k3d-agentic-ops (pinned). Ctrl-C stops.[0m
+  [36m→ resources_create_or_update[0m {"resource": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\n  namespace: agentic-op
+  [36m→ resources_create_or_update[0m {"resource": "apiVersion: v1\nkind: Service\nmetadata:\n  name: web\n  namespace: agentic-ops\nspec:
+
+
+[2m2 tool calls, 7 turns[0m
+[31m{"error":{"message":"{\n  \"error\": {\n    \"code\": 500,\n    \"message\": \"Internal error encountered.\",\n    \"status\": \"INTERNAL\"\n  }\n}\n","code":500,"status":"Internal Server Error"}}[0m
+make: *** [agent] Error 1
