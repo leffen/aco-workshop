@@ -12,7 +12,8 @@ runs.
 
 - a line in `agents/prompts/harden.md`, the system prompt
 - the safety net: `ACO_SAFETY_NET=0` turns it off for `make eval`. Off is our baseline
-  configuration, and the unchanged default matches the "Safety net on" row below.
+  configuration, and the unchanged default matches the "Safety net on" row below. Claude
+  Code only: pi has no safety net, so on `pi-gemini` the prompt is your one change.
 
 `MCP_FLAGS` from Lab 1 hard is not on the list: both flags remove the tool that writes, so
 every run fails by construction.
@@ -22,7 +23,7 @@ every run fails by construction.
 Three runs take about 20 minutes:
 
 ```bash
-ACO_EXPERIMENT=mine-prompt make eval SCENARIO=harden-restricted N=3 AGENT=claude
+ACO_EXPERIMENT=mine-prompt make eval SCENARIO=harden-restricted N=3
 ```
 
 Name the experiment after what you changed, `mine-net` for the safety net, so two tries

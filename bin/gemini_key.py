@@ -6,8 +6,11 @@ Puts the Gemini key the facilitator gave you into .env, with ACO_HARNESS set to
 pi-gemini, and checks it with one tiny call. The key is asked for at a hidden
 prompt: it never shows on screen and never lands in your shell history.
 
-Only for the participants who were handed a key (bootstrap/gemini-key.sh give).
-Every other line of .env is kept as it is. Stdlib only.
+For the key the facilitator hands you (bootstrap/gemini-key.sh give), and the
+first thing to run in a Codespace after make env-up. Your own key works too if
+its project has billing: a free-tier key runs out before the first lab, and is
+refused here with that reason. Every other line of .env is kept as it is.
+Stdlib only.
 """
 import getpass, json, os, pathlib, re, sys, tempfile, urllib.request, urllib.error
 
@@ -52,6 +55,11 @@ def check(key):
         msg = json.loads(e.read() or b"{}").get("error", {}).get("message", "")
         if e.code in (429, 503) and "free_tier" not in msg:
             return True, "the key works; the API is busy right now, so the first run may wait"
+        if "free_tier" in msg:
+            # 20 requests a day on the pinned model: agent-check uses them up
+            # (runthrough/2026-10-25-pi-gemini).
+            return False, ("this key is on Google's free tier, which runs out before the "
+                           "first lab: ask the facilitator for a workshop key")
         if e.code == 402:
             return False, "the workshop's credit has run out: tell the facilitator"
         if e.code in (400, 403):

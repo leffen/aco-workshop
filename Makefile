@@ -40,8 +40,12 @@ install: ## Install the tools that are missing: macOS, Linux, WSL2. Safe to re-r
 	@bootstrap/install.sh $(if $(DRY_RUN),--dry-run)
 
 .PHONY: setup
-setup: ## Python environment, .env, then the preflight. Safe to re-run
+setup: ## Python environment, .env and your key (it asks), then the preflight. Safe to re-run
 	@VENV=$(VENV) MAKE="$(MAKE)" bootstrap/setup.sh
+
+.PHONY: key
+key: ## Paste a new API key for your harness into .env. It is never printed
+	@bootstrap/setup.sh key
 
 # Targets that run the harness depend on this, so a skipped make setup is
 # repaired on demand instead of failing on a missing .venv/bin/python.
@@ -90,6 +94,10 @@ prove: $(VENV)/.installed ## Check a quest on your namespace, print its proof. R
 .PHONY: preflight
 preflight: ## Check tools, pre-pull images, warm the agent. Exits non-zero if anything is missing
 	@bootstrap/preflight.sh
+
+.PHONY: warm
+warm: ## Download every image and agent package the labs use, and check nothing. The Codespace prebuild runs it
+	@bootstrap/preflight.sh --warm
 
 .PHONY: cluster-up
 cluster-up: ## Alias for: make env-up ENV=k3d

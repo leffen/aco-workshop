@@ -56,14 +56,31 @@ bad() { record fail "$1" "$2"; }
 kq() { kubectl -n "$NAMESPACE" "$@" 2>/dev/null; }
 
 # ---------------------------------------------------------------------------
-# 1. The namespace still exists
+# 1. The namespace still exists, and is ours
+#
+#    The referee follows the current kubectl context, like the rest of the
+#    environment contract: bring-your-own means whatever cluster you are on. So
+#    it checks ownership the way evals/reset.sh does before it creates the
+#    probe pod in check 4. A context that moved onto someone else's cluster
+#    gets a red verdict and nothing created there. The label sits on the
+#    namespace, which no rung of the agent's RBAC ladder can edit.
 # ---------------------------------------------------------------------------
-if kubectl get ns "$NAMESPACE" >/dev/null 2>&1; then
-  ok "namespace" "$NAMESPACE exists"
-else
+if ! command -v kubectl >/dev/null 2>&1; then
+  # Otherwise every check below reads as "the namespace is missing".
+  echo "health.sh: kubectl is not on PATH; the referee cannot look at anything" >&2
+  exit 2
+fi
+OWNED="$(kubectl get ns "$NAMESPACE" \
+  -o jsonpath='{.metadata.labels.app\.kubernetes\.io/part-of}' 2>/dev/null)"
+if ! kubectl get ns "$NAMESPACE" >/dev/null 2>&1; then
   bad "namespace" "$NAMESPACE is missing"
   # Nothing else is meaningful. Report and stop.
   MODE_EXIT=1
+elif [ "$OWNED" != "agentic-cloud-ops" ]; then
+  bad "namespace" "$NAMESPACE was not created by this workshop (context $(kubectl config current-context 2>/dev/null || echo none)) — not probing it"
+  MODE_EXIT=1
+else
+  ok "namespace" "$NAMESPACE exists"
 fi
 
 if [ "${MODE_EXIT:-0}" -eq 0 ]; then
@@ -133,16 +150,35 @@ if [ "${MODE_EXIT:-0}" -eq 0 ]; then
   #    MUST allow it — monitoring needing network access is a real constraint,
   #    not an exception we make for ourselves.
   # -------------------------------------------------------------------------
+  #
+  #    Not `kubectl run -i --rm`: when the container finishes before kubectl has
+  #    attached, its output is lost, and an empty body with exit 0 reads as "no
+  #    response". It did that 2 times in one Codespace smoke test, 2026-10-11,
+  #    against a working app. So the probe runs detached, and its verdict is the
+  #    exit code in the pod's status and the body in its log, read once it has
+  #    finished. A probe that cannot start, or does not finish, still fails.
   PROBE="health-probe-$$"
-  BODY="$(kq run "$PROBE" \
-            --image=busybox:1.36 --restart=Never --rm -i --quiet \
-            --labels="app.kubernetes.io/component=health-probe" \
-            --pod-running-timeout=45s \
-            --command -- wget -q -T 8 -O- "http://shopfront/" 2>/dev/null)"
-  RC=$?
-  kq delete pod "$PROBE" --force --grace-period=0 >/dev/null 2>&1
+  PROBE_WAIT=60   # seconds; wget gives up after 8, the rest is scheduling
+  RC="" PHASE="" BODY=""
+  if kq run "$PROBE" \
+       --image=busybox:1.36 --restart=Never \
+       --labels="app.kubernetes.io/component=health-probe" \
+       --command -- wget -q -T 8 -O- "http://shopfront/" >/dev/null; then
+    for _ in $(seq "$PROBE_WAIT"); do
+      PHASE="$(kq get pod "$PROBE" -o jsonpath='{.status.phase}')"
+      case "$PHASE" in Succeeded|Failed) break ;; esac
+      sleep 1
+    done
+    RC="$(kq get pod "$PROBE" -o jsonpath='{.status.containerStatuses[0].state.terminated.exitCode}')"
+    BODY="$(kq logs "$PROBE")"
+  fi
+  kq delete pod "$PROBE" --force --grace-period=0 --wait=false >/dev/null 2>&1
 
-  if [ $RC -ne 0 ] || [ -z "$BODY" ]; then
+  if [ -z "$PHASE" ]; then
+    bad "http" "the probe pod could not be created"
+  elif [ -z "$RC" ]; then
+    bad "http" "the probe did not finish within ${PROBE_WAIT}s (phase $PHASE)"
+  elif [ "$RC" -ne 0 ] || [ -z "$BODY" ]; then
     bad "http" "no response through the Service (probe exit $RC)"
   elif ! printf '%s' "$BODY" | grep -qi "nginx"; then
     # A 200 carrying the wrong body is not success. Serving an error page

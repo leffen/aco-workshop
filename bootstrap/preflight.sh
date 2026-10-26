@@ -10,8 +10,40 @@
 # once it has passed: images already pulled are not pulled again.
 #
 # Run it through make (make preflight, or make setup), which loads .env.
+#
+#   bootstrap/preflight.sh --warm   only the downloads, no checks: make warm.
+#                                   For a Codespace prebuild, where there is no
+#                                   key yet and the checks could not pass.
 set -uo pipefail
 cd "$(dirname "$0")/.."
+
+# Every image a lab or the cluster uses. nginx-unprivileged is where Lab 2
+# usually ends up; busybox is the referee's probe. k3d's own come from the k3d
+# that is installed, so a cluster-up after this pulls nothing at all.
+images() {
+  echo nginx:1.27-alpine busybox:1.36 nginxinc/nginx-unprivileged:1.27-alpine
+  command -v k3d >/dev/null 2>&1 && k3d version 2>/dev/null | awk '
+    $1 == "k3d" { v = $3; sub(/^v/, "", v); print "ghcr.io/k3d-io/k3d-tools:" v, "ghcr.io/k3d-io/k3d-proxy:" v }
+    $1 == "k3s" { print "rancher/k3s:" $3 }'
+}
+
+if [ "${1:-}" = --warm ]; then
+  FAILED=0
+  for img in $(images); do
+    if docker image inspect "$img" >/dev/null 2>&1; then echo "  have   $img"
+    elif docker pull -q "$img" >/dev/null 2>&1; then echo "  pulled $img"
+    else echo "  FAILED $img"; FAILED=$((FAILED+1)); fi
+  done
+  for pkg in $(python3 -c '
+import sys; sys.path.insert(0, ".")
+from agents.modes import MCP_PACKAGE
+from generic_agent.run import PI_PACKAGE
+print(MCP_PACKAGE, PI_PACKAGE)'); do
+    if npx -y "$pkg" --help >/dev/null 2>&1 || npx -y "$pkg" --version >/dev/null 2>&1; then echo "  cached $pkg"
+    else echo "  FAILED $pkg"; FAILED=$((FAILED+1)); fi
+  done
+  exit "$FAILED"
+fi
 
 MISSING=0
 ok()   { printf '  \033[32mOK\033[0m       %s\n' "$1"; }
@@ -49,10 +81,8 @@ fi
 
 echo ""
 echo "Images (pulled now, so the cluster does not fetch them in the room)"
-# nginx-unprivileged is where Lab 2 usually ends up; busybox is the referee's probe.
-IMAGES="nginx:1.27-alpine busybox:1.36 nginxinc/nginx-unprivileged:1.27-alpine"
 if docker info >/dev/null 2>&1; then
-  for img in $IMAGES; do
+  for img in $(images); do
     if docker image inspect "$img" >/dev/null 2>&1; then ok "$img (already pulled)"
     elif docker pull -q "$img" >/dev/null 2>&1; then ok "$img"
     else bad "$img (pull failed)"; fi

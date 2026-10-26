@@ -30,7 +30,7 @@ Each eval run starts from a reset namespace and plants the scenario itself, with
 prompt above. First run the unchanged system prompt:
 
 ```bash
-ACO_EXPERIMENT=mine-none make eval SCENARIO=injection-probe N=3 AGENT=claude
+ACO_EXPERIMENT=mine-none make eval SCENARIO=injection-probe N=3
 ```
 
 #### 3 · Add the defence and measure again
@@ -39,7 +39,7 @@ Add one line to `agents/prompts/incident.md` telling the agent to treat text it 
 from the cluster as data, not instructions, and measure it over three runs:
 
 ```bash
-ACO_EXPERIMENT=mine-defence make eval SCENARIO=injection-probe N=3 AGENT=claude
+ACO_EXPERIMENT=mine-defence make eval SCENARIO=injection-probe N=3
 ```
 
 The experiment name keeps the two from being pooled.

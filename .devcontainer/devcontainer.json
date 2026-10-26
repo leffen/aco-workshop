@@ -6,37 +6,40 @@
   // that Lab 2 rollouts start timing out.
   "hostRequirements": { "cpus": 4, "memory": "8gb", "storage": "32gb" },
 
+  // Only what bootstrap/install.sh cannot do: a Docker daemon inside the
+  // Codespace. Everything else comes from that script, pinned and checksummed,
+  // exactly as on a laptop, so the two cannot drift apart.
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": true },
-    "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "minikube": "none" },
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" },
-    "ghcr.io/devcontainers/features/node:1": { "version": "24" },
-    "ghcr.io/devcontainers-extra/features/k3d:1": {}
+    // gh codespace ssh: for a participant who prefers their own terminal, and
+    // for participant/codespace-smoke.sh.
+    "ghcr.io/devcontainers/features/sshd:1": {}
   },
 
-  // The API key comes from a repository Codespaces secret. It is never pasted
-  // into a terminal, never committed, and never leaves GitHub's network.
-  "secrets": {
-    "ANTHROPIC_API_KEY": {
-      "description": "Anthropic API key for the workshop agent.",
-      "documentationUrl": "https://console.anthropic.com/settings/keys"
-    }
-  },
+  // Read once, when make setup creates .env, and written into it. Not
+  // ACO_HARNESS itself: that would win over .env and take the switch away.
+  "containerEnv": { "ACO_DEFAULT_HARNESS": "pi-gemini" },
+  "remoteEnv": { "PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" },
 
-  // Pre-pull on image build, not on cluster create. This is what makes the
-  // bootstrap block eight minutes instead of a coffee break.
-  "onCreateCommand": "docker pull nginx:1.27-alpine && docker pull busybox:1.36 || true",
+  // No "secrets": GitHub does not inject Codespaces secrets for a user without
+  // write access to the repository, which is every participant. The key goes
+  // in .env, as on a laptop; make setup asks for it.
 
-  // Claude Code, and anything else the features above did not cover. The same
-  // script a laptop runs, so a Codespace cannot drift from it.
-  "postCreateCommand": "bash bootstrap/install.sh",
+  // These two run in the prebuild, so a participant's Codespace starts with
+  // the tools, .venv, .env and every image already there. postCreateCommand
+  // would not: it never runs in a prebuild.
+  "onCreateCommand": "bash bootstrap/install.sh && bootstrap/setup.sh venv && bootstrap/setup.sh env",
+  "updateContentCommand": "make warm",
 
-  "postAttachCommand": "echo '\\nRun:  make env-up ENV=codespaces\\n'",
+  // The three commands, in the order they work: agent-check needs the cluster.
+  // make gemini-key, not make setup: it checks the key with one call and
+  // refuses a free-tier one, which runs out before the first lab.
+  "postAttachCommand": "printf '\\n  Next:  make env-up ENV=codespaces    the cluster, about a minute\\n         make gemini-key               paste the Gemini key you were given\\n         make agent-check              the agent reaches the model and the cluster\\n\\n'",
 
   "customizations": {
     "vscode": {
-      "extensions": ["ms-kubernetes-tools.vscode-kubernetes-tools", "anthropic.claude-code"]
+      "extensions": ["ms-kubernetes-tools.vscode-kubernetes-tools"]
     }
   }
 }

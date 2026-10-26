@@ -10,14 +10,39 @@ are likely to meet, is at **<https://aco.hlutur.no/prepare>**. It takes about fi
 minutes, and a room full of laptops on conference Wi-Fi is the most likely way this
 workshop fails.
 
-## Prepare
+## Prepare in a Codespace: nothing to install
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/leffen/aco-workshop?quickstart=1)
+
+Everything runs in a GitHub Codespace, and your laptop needs only a browser. The agent
+runs in pi with Google Gemini there, so all you need is a Gemini key: the facilitators
+hand one to each participant on the day, behind a spend limit. Your own key works if its
+Google project has billing; a free-tier key runs out before the first lab (20 requests a
+day), and `make gemini-key` refuses one that already has.
+
+1. **Raise your idle timeout first**, at <https://github.com/settings/codespaces>, to
+   120 minutes. The default 30 stops a Codespace in the middle of a long lab.
+2. Open the Codespace with the button above, and wait for the terminal.
+3. Run:
+
+   ```bash
+   make env-up ENV=codespaces  # the cluster, about a minute
+   make gemini-key             # paste the Gemini key you were given; it is checked, never shown
+   make agent-check            # the agent reaches the model and the cluster
+   ```
+
+A 4-core Codespace uses about 12 of your 120 free core-hours a month for the workshop and
+an evening's preparation. Delete it afterwards, at <https://github.com/codespaces>.
+To use Claude Code instead, set `ACO_HARNESS=claude` in `.env` and run `make key`.
+
+## Prepare on your laptop
 
 You need at least 8 GB of free RAM, and these tools: Git, Docker (or Podman/Colima),
 kubectl, k3d, make, Python 3.11 or newer, Node.js 20.6 or newer and Claude Code.
 Running the model locally with Ollama takes the model's own size plus about 6 GB for the
 cluster and your apps: 13 GB of RAM for `aco-qwen3-4b-24k`, 20 GB for `gpt-oss:20b`. With
 less, it swaps until every agent run times out. `make preflight` warns when yours has less.
-On a smaller machine, use a GitHub Codespace with the `pi-gemini` harness (see below): the
+On a smaller machine, use a GitHub Codespace with the `pi-gemini` harness (see above): the
 cluster and the model then both run off your laptop.
 
 `make install` installs whichever are missing, on macOS, Linux and Windows (WSL2):
@@ -27,8 +52,7 @@ git clone https://github.com/leffen/aco-workshop.git
 cd aco-workshop
 
 make install               # the tools above; only what is missing. No make yet? bash bootstrap/install.sh
-make setup                 # Python environment, .env, then the preflight
-$EDITOR .env               # set ANTHROPIC_API_KEY, or ACO_BACKEND=claude-login (below)
+make setup                 # Python environment, .env, your harness and its key (it asks), then the preflight
 make preflight             # every line must say OK or LOW; it tells you what to fix if not
 ```
 
@@ -42,10 +66,13 @@ Every command here is safe to re-run: `make install` and `make setup` only do wh
 done yet, and `make cluster-up` starts, repairs or reuses the cluster it finds. When in
 doubt, run it again.
 
-`.env` is git-ignored. Never commit it, and use a key you can rotate afterwards.
+`make setup` asks which harness to use and for its key, and writes both into `.env`; the
+key is read hidden and never printed. `make key` asks for the key again. `.env` is
+git-ignored. Never commit it, and use a key you can rotate afterwards.
 
-No API key? If you have a Claude Pro or Max plan, set `ACO_BACKEND=claude-login` in `.env`
-and log in once with `claude auth login`. The agent then runs on your own Claude Code login,
+No API key? If you have a Claude Pro or Max plan, choose `claude` when `make setup` asks,
+press Enter to skip the key, set `ACO_BACKEND=claude-login` in `.env`, and log in once with
+`claude auth login`. The agent then runs on your own Claude Code login,
 the same model with the same tools and limits, and `make preflight` checks the login
 instead of a key. Your own CLAUDE.md, hooks, plugins and skills are kept out of it.
 
@@ -57,9 +84,11 @@ make agent-check           # the agent reaches the model and the cluster, and th
 make lab LAB=1             # start a lab; LEVEL=easy|normal|hard picks your level
 ```
 
-Pick the harness the agent runs inside with `ACO_HARNESS` in `.env` — `claude` (Claude Code)
-or `pi-gemini`; preflight fails until one is set. To try another for a single command, add
-`HARNESS=`:
+In a Codespace, `make env-up ENV=codespaces` takes the place of `make cluster-up`.
+
+The harness the agent runs inside is `ACO_HARNESS` in `.env`: `claude` (Claude Code) or
+`pi-gemini`. A Codespace starts on `pi-gemini`; on a laptop, `make setup` asks. To try
+another for a single command, add `HARNESS=`:
 
 ```bash
 make agent-check HARNESS=pi-gemini      # needs GEMINI_API_KEY in .env
@@ -69,9 +98,7 @@ make agent MODE=incident HARNESS=pi-gemini
 The labs were written and measured with Claude Code. Another harness has no `APPROVE=manual`
 and no safety net, and its numbers are a series of their own.
 
-`make help` lists every command. Prefer not to run a cluster locally? Open this repository
-in a GitHub Codespace and run `make env-up ENV=codespaces` instead of `make cluster-up`.
-Bringing your own cluster is `make env-up ENV=byo`.
+`make help` lists every command. Bringing your own cluster is `make env-up ENV=byo`.
 
 > [!WARNING]
 > **Use a throwaway cluster.** The agent gets write access to one namespace. Point it only
