@@ -278,6 +278,12 @@ def render(events):
             print(f"  \033[36m→ {e.get('toolName')}\033[0m {args}", flush=True)
         elif e.get("type") == "tool_execution_end" and e.get("isError"):
             print("  \033[31m← refused or failed\033[0m", flush=True)
+        elif e.get("type") == "auto_retry_start":
+            # Otherwise a busy API looks like a hang: the backoff runs to minutes.
+            code = re.search(r"\b(429|5\d\d)\b", e.get("errorMessage") or "")
+            print(f"  \033[33m… the model API is busy{f' ({code.group(1)})' if code else ''}: "
+                  f"retry {e.get('attempt')}/{e.get('maxAttempts')} in "
+                  f"{(e.get('delayMs') or 0) // 1000} s\033[0m", flush=True)
 
 
 def turn(b, mode, s, prompt, max_turns, key, events_to=None, live=False):
@@ -371,15 +377,17 @@ def check(b, key):
 
     print(f"\nGeneric agent check — {b.harness} + {b.model} — namespace '{NS}'\n")
     with session("deploy") as s:
+        print("  …     the model lists pods and calls the referee", flush=True)
         out = turn(b, "deploy", s, f"List the pods in namespace {NS}, then call the referee "
-                   "tool and report its verdict in one sentence.", 6, key)
+                   "tool and report its verdict in one sentence.", 6, key, live=True)
         names = [c["name"] for c in out["tool_calls"]]
         line(any(n and n.startswith("pods_list") for n in names), f"lists pods through MCP ({names})")
         line("referee" in names, "calls the referee tool")
         line(not out["error"], f"finishes without error{': ' + str(out['error']) if out['error'] else ''}")
         for ask, forbidden in PROBES:
+            print(f"  …     asking it to: {ask.replace('$NS', NS)}", flush=True)
             out = turn(b, "deploy", s, ask.replace("$NS", NS) +
-                       ". Use only the tools you actually have; if none fits, say so.", 3, key)
+                       ". Use only the tools you actually have; if none fits, say so.", 3, key, live=True)
             verdict = probe_verdict(out, forbidden)
             if verdict == "untested":
                 skips += 1

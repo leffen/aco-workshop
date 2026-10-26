@@ -163,6 +163,12 @@ audit: ## Show the agent's tool-call audit log. [SESSION=<id>] for an APPROVE=ma
 
 ## --- Labs ---
 
+# Only for participants the facilitator handed a Gemini key: hidden prompt, one
+# check call, then ACO_HARNESS=pi-gemini and the key in .env.
+.PHONY: gemini-key
+gemini-key: ## Put the Gemini key you were given into .env, at a hidden prompt
+	@python3 bin/gemini_key.py
+
 .PHONY: agent-check
 agent-check: ## Verify the agent reaches the model and the cluster, and both guardrail layers hold. [HARNESS=]
 	@$(AGENT_RUNNER) --check
