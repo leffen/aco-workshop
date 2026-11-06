@@ -253,6 +253,8 @@ SECRETS = [
     (re.compile(r"(Bearer\s+)[^\s\"']+"), r"\1<redacted>"),
     (re.compile(r"((?:token|client-key-data|client-certificate-data|password):\s*)\S+"),
      r"\1<redacted>"),                                                              # kubeconfig
+    (re.compile(r"AIza[\w-]{35}"), "<redacted>"),                                    # Gemini API keys
+    (re.compile(r"sk-ant-[\w-]+"), "<redacted>"),                                    # Anthropic API keys
 ]
 
 

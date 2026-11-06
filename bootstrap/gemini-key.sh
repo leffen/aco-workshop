@@ -87,8 +87,10 @@ create_key() {
 }
 
 delete_key() {   # delete reports the key string on stderr too: as above
+  # Google refuses to delete a key used in the last 7 days unless told to skip
+  # the check (2026-10-26: every key, right after the workshop).
   local err
-  err=$(run gcloud services api-keys delete "$1" --quiet 2>&1 >/dev/null </dev/null) \
+  err=$(run gcloud services api-keys delete "$1" --quiet --no-check-existing-usage 2>&1 >/dev/null </dev/null) \
     || { warn "could not delete $1: $(printf '%s\n' "$err" | grep -v keyString | tail -n 3)"; return 1; }
   printf '%s\n' "$err" | grep '^  + '
 }
