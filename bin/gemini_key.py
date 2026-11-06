@@ -2,14 +2,14 @@
 """
 make gemini-key
 
-Puts the Gemini key the facilitator gave you into .env, with ACO_HARNESS set to
-pi-gemini, and checks it with one tiny call. The key is asked for at a hidden
+Puts your Gemini key into .env, with ACO_HARNESS set to pi-gemini, and checks
+it with one tiny call. The key is asked for at a hidden
 prompt: it never shows on screen and never lands in your shell history.
 
-For the key the facilitator hands you (bootstrap/gemini-key.sh give), and the
-first thing to run in a Codespace after make env-up. Your own key works too if
-its project has billing: a free-tier key runs out before the first lab, and is
-refused here with that reason. Every other line of .env is kept as it is.
+The first thing to run in a Codespace after make env-up. The key's project
+needs billing: a free-tier key runs out before the first lab, and is refused
+here with that reason. A workshop key (bootstrap/gemini-key.sh give) works the
+same way. Every other line of .env is kept as it is.
 Stdlib only.
 """
 import getpass, json, os, pathlib, re, sys, tempfile, urllib.request, urllib.error
@@ -59,9 +59,9 @@ def check(key):
             # 20 requests a day on the pinned model: agent-check uses them up
             # (runthrough/2026-10-25-pi-gemini).
             return False, ("this key is on Google's free tier, which runs out before the "
-                           "first lab: ask the facilitator for a workshop key")
+                           "first lab: enable billing on its Google project, then run make gemini-key again")
         if e.code == 402:
-            return False, "the workshop's credit has run out: tell the facilitator"
+            return False, "this key's project has run out of credit: top it up in Google AI Studio"
         if e.code in (400, 403):
             return False, "Google does not accept this key: check you copied all of it, or ask for a new one"
         return False, f"HTTP {e.code}: {msg[:160]}"
@@ -72,7 +72,7 @@ def check(key):
 
 
 def main():
-    print("Paste the Gemini key you were given (it starts with AIza or AQ.). It will not show.")
+    print("Paste your Gemini key (it starts with AIza or AQ.). It will not show.")
     try:
         key = getpass.getpass("key › ").strip()
     except (EOFError, KeyboardInterrupt):

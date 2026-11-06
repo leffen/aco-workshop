@@ -35,7 +35,7 @@
   // The three commands, in the order they work: agent-check needs the cluster.
   // make gemini-key, not make setup: it checks the key with one call and
   // refuses a free-tier one, which runs out before the first lab.
-  "postAttachCommand": "printf '\\n  Next:  make env-up ENV=codespaces    the cluster, about a minute\\n         make gemini-key               paste the Gemini key you were given\\n         make agent-check              the agent reaches the model and the cluster\\n\\n'",
+  "postAttachCommand": "printf '\\n  Next:  make env-up ENV=codespaces    the cluster, about a minute\\n         make gemini-key               paste your Gemini key\\n         make agent-check              the agent reaches the model and the cluster\\n\\n'",
 
   "customizations": {
     "vscode": {
